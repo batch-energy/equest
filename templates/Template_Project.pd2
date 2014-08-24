@@ -1,0 +1,75 @@
+Proj   "Template_Project"  
+   ProgramVersion = "eQUEST 3.63.6510"
+   BDBaseVersion = 24
+   ProductCode = "eQUEST"
+   WeatherFile = "TMY2\SEATTLWA.bin"
+   CreateDate = 1212866696
+   ModDate = 1258058376
+   LibraryFile = "eQ_Lib.dat"
+   InputModule = 1
+   UseCameraData = 1
+   ClippingRange = ( 703.024, 1952.68 )
+   FocalPoint = ( 232.513, 58.7751, 3.52929 )
+   Position = ( 1115.21, 632.005, 667.973 )
+   ViewUpVector = ( 0, 0, 1 )
+   ViewAngle = 19.1564
+   InterfaceMode = 1
+   AllowWizard = 0
+   InputUnitsType = "English"
+   OutputUnitsType = "English"
+   DetailedModelEdits = 1
+   ..
+
+DiagData   "Detailed UI DiagData"  
+   PolyWndGridRes = 1
+   PolyWndLwrLeftX = 167.1
+   PolyWndLwrLeftY = 43.9
+   PolyWndWidth = 122.857
+   ..
+
+FacetColor   "By Wall Type"  
+   FacetType = "Walls"
+   ColorOption = "By Wall Type"
+   ..
+
+FacetColor   "By Construction"  
+   FacetType = "Walls"
+   ColorOption = "By Construction"
+   ..
+
+FacetColor   "Uniform"  
+   FacetType = "Windows"
+   ColorOption = "Uniform"
+   ..
+
+FacetColor   "By Glass Type"  
+   FacetType = "Windows"
+   ColorOption = "By Glass Type"
+   ..
+
+Light3D   "Light3D - Default"  
+   Type = "Default"
+   ..
+
+Light3D   "Light3D - User1"  
+   Type = "User Defined 1"
+   ..
+
+Light3D   "Light3D - User2"  
+   Type = "User Defined 2"
+   ..
+
+Light3D   "Light3D - User3"  
+   Type = "User Defined 3"
+   ..
+
+Light3D   "Light3D - User4"  
+   Type = "User Defined 4"
+   ..
+
+Light3D   "Light3D - User5"  
+   Type = "User Defined 5"
+   ..
+
+
+END_OF_FILE
