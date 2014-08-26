@@ -41,7 +41,7 @@ def get_angle(p1, p2, style='doe'):
 def get_angle_name(a):
     directions = ['North', 'North West', 'West', 'South West', 'South', 
         'South East', 'East', 'North East', 'North']
-    index = int(rount(float(a)/8),0)
+    index = int(round(float(a)/8),0)
     return(directions[index])
 
 def is_ccw(poly):

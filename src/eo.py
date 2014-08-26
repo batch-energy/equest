@@ -1,5 +1,5 @@
 from collections import OrderedDict
-import re, time, os, ref, textwrap
+import re, time, os, ref, textwrap, e_math, math
 from shapely.geometry import Polygon as Poly
 from shapely.geometry import Point as Pt
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
@@ -24,8 +24,6 @@ class Building(object):
     def __init__(self):
         self.objects = OrderedDict()
         self.selected = []
-        
-        self.model = None
 
     def load(self, fn):
         self.fn = fn
@@ -109,7 +107,6 @@ class Building(object):
             else:
                 parent = None
 
-            print kind
             # Load special objects
             if kind == 'FLOOR':
                 o = Floor(self, name, kind)
@@ -179,9 +176,6 @@ class Object(object):
             self.has_name = False
         else:
             self.has_name = True
-
-        # create entry in building object dictionary
-        b.objects[self.name] = self
 
     def delete(self):
         if self.parent:
@@ -288,8 +282,7 @@ class Polygon(Object):
             self.vertices.append([float(x),float(y)])
 
     def write(self):
-        t = ''
-        t += self.name + ' = ' + self.kind + '\n'        
+        t = self.name + ' = ' + self.kind + '\n'
 
         for i, (x, y) in enumerate(self.vertices, start=1):  
             t += '   V%s = ( %s, %s )\n' % (i, x, y)
@@ -304,23 +297,19 @@ class Polygon(Object):
         new = []
         count = len(self.vertices)
         for i in range(count):
-            if e_math.distance(self.vertices[i], self.vertices[i%num]) > tol:
+            if e_math.distance(self.vertices[i], self.vertices[i%count]) > tol:
                 new.append(self.vertices[i])
     
     def get_vertices(self, v):
-        p1 = self.vertices(v-1)
-        p2 = self.vertices(v%len(self.vertices))
-        
+        vertices = self.vertices + [self.vertices[0]]
+        return vertices[v-1:v+1]
+
 
 class Floor(Object):
 
     def __init__ (self, b, name=None, kind='FLOOR'):
 
         Object.__init__(self, b, name, kind)
-
-    def spaces(self):
-        return [space for space in self.b.kinds('SPACES')
-            if space.parent.name == self.name]
 
     def x(self):
         return self.get('X')
@@ -332,7 +321,7 @@ class Floor(Object):
         return self.get('Z')
 
     def delete(self):
-        for space in self.spaces():
+        for space in self.children:
             space.delete()
         del self
 
@@ -343,27 +332,36 @@ class Space(Object):
 
         Object.__init__(self, b, name, kind, parent)
     
-    def global_x(self):
-        return self.parent.x() + self.get('X')
-
-    def global_y(self):
-        return self.parent.y() + self.get('Y')
-
-    def global_z(self):
-        conditioned_z = self.parent.get('SPACE-HEIGHT') * self.get('ZONE-TYPE') == 'PLENUM'
-        return self.parent.z() + self.get('Z') + conditioned_z
-
-    def height(self):        
-        if self.get('HEIGHT'):
-            return self.get('HEIGHT')
-        elif self.get('ZONE-TYPE') != 'PLENUM':
+    def z(self):
+        if 'Z' in self.attr:
+            return self.attr['Z']
+        elif self.is_plenum():
             return self.parent.get('SPACE-HEIGHT')
         else:
+            return self.get('Z')
+    
+    def x_global(self):
+        return self.parent.x() + self.get('X')
+
+    def y_global(self):
+        return self.parent.y() + self.get('Y')
+
+    def z_global(self):
+        return self.parent.z() + self.z()
+
+    def height(self):        
+        if 'HEIGHT' in self.attr:
+            return self.attr['HEIGHT']
+        elif self.is_plenum():
             return self.parent.get('FLOOR-HEIGHT') - self.parent.get('SPACE-HEIGHT')
+        else:
+            return self.parent.get('SPACE-HEIGHT')
  
+    def is_plenum(self):
+        return self.get('ZONE-TYPE') == 'PLENUM'
+        
     def polygon(self):
-        polygon = self.parent.get('POLYGON')
-        return self.b.objects[polygon]
+        return self.b.objects[self.get('POLYGON')]
     
     def count_vertices(self):
         return len(self.vertices())
@@ -377,16 +375,13 @@ class Space(Object):
             i_wall.get('NEXT-TO') == self.name]
         
     def i_walls(self):
-        return [i_wall for i_wall in self.b.objects['INTERIOR-WALL']
-            if i_wall.parent.name == self.name]
+        return [wall for wall in self.children if wall.kind == 'INTERIOR-WALL']
 
     def e_walls(self):
-        return [e_wall for e_wall in self.b.objects['EXTERIOR-WALL']
-            if e_wall.parent.name == self.name]
+        return [wall for wall in self.children if wall.kind == 'EXTERIOR-WALL']
 
     def u_walls(self):
-        return [u_wall for u_wall in self.b.objects['UNDERGROUND-WALL']
-            if u_wall.parent.name == self.name]
+        return [wall for wall in self.children if wall.kind == 'UNDERGROUND-WALL']
 
     def find_next_wall_name(self, kind="E"):
         space_name = self.name[1:-1]
@@ -400,19 +395,23 @@ class Space(Object):
     
     def delete(self):
         for wall in self.e_walls() + self.i_walls() + self.u_walls():
-            item.delete()
+            wall.delete()
         del self
 
-    def overlap(self, space):
-        l1 = self.global_z()
+    def overlap(self, other):
+        l1 = self.z_global()
         u1 = l1 + self.height()
-        l2 = space.global_z()
-        u2 = l2 + space.height()
+        l2 = other.z_global()
+        u2 = l2 + other.height()
         u = min(u1, u2)
         l = max(l1, l2)
         ol = u - l
         return ol
 
+    def zone(self):
+        for zone in self.b.kinds('ZONE').values():
+            if zone.get('SPACE') == self.name:
+                return zone
 
 
 class Wall(Object):
@@ -425,45 +424,39 @@ class Wall(Object):
         return [window for window in self.b.objects['WINDOW']
             if window.parent.name == self.name]
 
-    def doors(self, windows):
+    def doors(self, doors):
         return [window for window in self.b.objects['DOOR']
             if window.parent.name == self.name]
     
-    # need to make global x, y and z and angle for walls and windows
     
-    def global_z(self):
-        z = self.parent.global_z()
+    def z(self):
 
-        is_plenum = self.parent.zone_type() == 'PLENUM'
+        if 'Z' in self.attr:
+            return self.attr['Z']
+        elif self.get('LOCATION') == 'TOP':
+            return self.parent.get('Z')
+        else:
+            return self.get('Z')
 
-        if self.get('Z'):
-            z += self.get('Z')
-
-        elif self.location == 'TOP':
-            if is_plenum:
-                z += self.parent.parent.get('FLOOR-HEIGHT')
-            else:
-                z += self.parent.parent.get('SPACE-HEIGHT')
-        elif is_plenum:
-            z += self.parent.parent.get('SPACE-HEIGHT')
-
-        return z
+    def special_horizontal(self):
+        return self.get('LOCATION') in ['TOP', 'BOTTOM']
+    
+    def z_global(self):
+        return self.parent.z_global() + self.z()
 
     def tilt(self):
         if self.get('TILT'):
             tilt = self.get('TILT')
-        elif self.location == 'TOP':
+        elif self.get('LOCATION') == 'TOP':
             tilt = 0
-        elif self.location == 'BOTTOM':
+        elif self.get('LOCATION') == 'BOTTOM':
             tilt = 180
         else:
             tilt = 90
         return tilt
 
     def height(self):
-        if (self.get('POLYGON') or
-                self.get('LOCATION') == 'TOP' or
-                self.location == 'BOTTOM'):
+        if (self.get('POLYGON') or self.special_horizontal()):
             return None
         elif self.get('HEIGHT'):
             return self.get('HEIGHT')
@@ -471,19 +464,18 @@ class Wall(Object):
             return self.parent.height()
 
     def width(self):
-        if (self.get('POLYGON') or
-                self.get('LOCATION') == 'TOP' or
-                self.location == 'BOTTOM'):
+        if (self.get('POLYGON') or self.special_horizontal()):
             return None
         elif self.get('WIDTH'):
             return self.get('WIDTH')
         else:
-            e_math.distance(self.get_vertices(v))
+            e_math.distance(self.get_vertices(self.get_vertices()))
 
     def get_side_number(self):
-        location = self.get('LOCATION')
-        if 'SPACE-' in location:
-            return int(re.findall('(?<=SPACE-V)\d+', location)[0])
+        if 'SPACE-' in self.get('LOCATION'):
+            return int(re.findall('(?<=SPACE-V)\d+', self.get('LOCATION'))[0])
+        else:
+            return None
 
     def get_vertices(self):
         polygon = self.parent.polygon()
@@ -491,19 +483,12 @@ class Wall(Object):
         return polygon.get_vertices(side_number)
         
     def area(self):
-        if (self.shape == 'POLYGON' or self.location == 'TOP' or
-                self.location == 'BOTTOM'):
-            
-            if self.get['POLYGON']:
-                p = self.b.kinds('POLYGON')[self.attr['POLYGON']]
-            else:
-                p = self.b.kinds('POLYGON')[self.parent.attr['POLYGON']]
-            area = polygons[p].area()
+        if self.shape == 'POLYGON':
+            return self.b.objects[self.attr['POLYGON']].area()
+        elif self.special_horizontal:
+            return self.b.objects[self.parent.attr['POLYGON']].area()
         else:
-            w = self.width()
-            h = self.height()
-            area = w * h
-        return area
+            return self.width() * self.height()
     
     def zone_type(self):
         return self.parent.zone_type()
@@ -513,11 +498,14 @@ class Wall(Object):
         if self.tilt()%180 == 0:
             return None
 
-        v = self.get_vertices()
-        angle = getAngle(v[0], v[1])
+        v1, v2 = self.get_vertices()[:2]
+        angle = e_math.get_angle(*self.get_vertices()[:2])
         if kind == 'doe':
-            angle = swap_angle(angle)        
+            angle = e_math.swap_angle(angle)
         return angle
+
+    def zone(self):
+        return self.parent.zone()
 
     def delete(self):
         del self
@@ -572,9 +560,9 @@ class Wall_Object(Object):
     def z(self):
         return self.parent.z() + self.get('Z')
 
-    def global_z(self):
+    def z_global(self):
 
-        wall_z = self.parent.global_z()
+        wall_z = self.parent.z_global()
         object_z = self.y() * math.sin(math.radians(self.parent.tilt))
         return wall_z + object_z
         
@@ -592,7 +580,7 @@ class Wall_Object(Object):
         self.attr['Y'] = self.get('Y') + y
 
     def zone(self):
-        return self.parent.parent.zone()
+        return self.parent.zone()
         
 
 class Window(Wall_Object):
