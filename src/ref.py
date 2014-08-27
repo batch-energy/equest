@@ -1,3 +1,7 @@
+clients = ['dmi', 'tmz']
+
+spaces_json = 'spaces.json'
+
 
 numeric = ['X', 'Y', 'Z', 'HEIGHT', 'WIDTH', 'SPACE-HEIGHT', 'FLOOR-HEIGHT', 'TILT', 'AZIMUTH']
 

@@ -4,6 +4,11 @@ import json
 import math
 import eo
 import re
+import sys
+import os
+import utils
+import ref
+import copy
 
 def convert_json(input):
     if isinstance(input, dict):
@@ -26,20 +31,30 @@ def get_fdf_attribute(attr, line):
 
 class Pdf_File(object):
     
-    def __init__(self, pdf_path, json_path):
+    def __init__(self, pdf_path, seed=None):
         self.pdf_path = pdf_path
-        self.json_path = json_path
         self.page_numbers = OrderedDict()
         self.pages = OrderedDict()
         self.messages = []
         self.polygons = []
         self.origins = []
         self.scales = []
-
         self.b = eo.Building()
-
         self.read_pdf()
-        self.read_json()
+
+    def define(self):
+        '''Query user to provide information about the building floors'''
+
+
+    def define(self):
+        self.define_floors()
+    
+    def create(self):
+        '''
+        Once the pdf file is read and the floors are defined, the building
+        can be created
+        '''
+        
         self.create_floors()
         self.process_polygons()
 
@@ -129,24 +144,49 @@ class Pdf_File(object):
                 if not polygon.name:
                     self.messages.append('Missing name in polygon on floor %s' % polygon.attrs['ET'])
 
-    def read_json(self):
+    def define_floors(self):
         '''Read the json file which contains the floor definitions'''
-        self.spec = OrderedDict()
 
-        f = open(self.json_path, 'r')
-        text = f.read()
-        self.spec = json.loads(text, object_pairs_hook=OrderedDict)
+        attrs = OrderedDict([('x',0), ('y',0), ('z',0), ('floor height',None), ('plenum height',None), ('default plenum',False)])
 
-        spec_keys = set(self.spec.keys()) 
-        fdf_keys = set(self.pages.keys()) 
+        if os.path.exists(ref.spaces_json):
+            with open(ref.spaces_json) as f:
+                self.spec = json.load(f, object_pairs_hook=OrderedDict)
+        else:
+            self.spec = OrderedDict()
+
+        for page_name in self.pages.keys():
+            print 'Page %s' % page_name
+
+            if not page_name in self.spec:
+                self.spec[page_name] = OrderedDict()
+
+            for attr, default in attrs.items():
+                if not attr in self.spec[page_name]:
+                    resp = raw_input(' %s [%s] >> ' % (attr, default))
+                    if not resp:
+                        print default
+                        resp = default
+                    elif resp.lower() in ['t', 'true']:
+                        resp = True
+                    elif resp.lower() in ['f', 'false']:
+                        resp = False
+                    else:
+                        try:
+                            resp = float(resp)
+                        except ValueError:
+                            resp = str(resp)
+                    self.spec[page_name][attr] = resp
+
+            # inherit defaults
+            for attr, new_default in self.spec[page_name].items():
+                if attr == 'z':
+                    attrs['z'] = self.spec[page_name]['floor height'] + self.spec[page_name]['z']
+                else:
+                    attrs[attr] = new_default
         
-        missing_spec = fdf_keys - spec_keys
-        if missing_spec:
-            self.messages.append('Missing in spec, Pages ' + ', '.join(missing_spec))
-
-        missing_fdf = spec_keys - fdf_keys
-        if missing_fdf:
-            self.messages.append('Missing in fdf, Pages ' + ', '.join(missing_fdf))
+        with open(ref.spaces_json, 'wb') as f:
+            json.dump(self.spec, f, indent=4, separators=(',', ': '))
 
     def create_floors(self):
         '''Create floors
@@ -178,7 +218,7 @@ class Pdf_File(object):
             if floor.has_plenum:
                 floor.attr['SPACE-HEIGHT'] = floor.attr['FLOOR-HEIGHT'] - self.spec[floor_name]['PH']
             else:
-                floor.attr['SPACE-HEIGHT'] = floor.attr['FLOOR-HEIGHTs']
+                floor.attr['SPACE-HEIGHT'] = floor.attr['FLOOR-HEIGHT']
                 
             # Check gap
             if i:
@@ -258,7 +298,7 @@ class Pdf_Origin(object):
     def set_orientation(self):
 
         messages = []
-        
+
         pt1 = [self.vertices[0][0], self.vertices[0][1]]
         pt2 = [self.vertices[1][0], self.vertices[1][1]]
         pt3 = [self.vertices[2][0], self.vertices[2][1]]
@@ -278,10 +318,10 @@ class Pdf_Origin(object):
             self.y, self.x = pt2
             if pt1[0] < pt2[0]: self.y_mirror = -1
             if pt3[1] < pt2[1]: self.x_mirror = -1
-                
+
         return messages
-        
-        
+
+
 class Pdf_Scale(object):
 
     def __init__(self, line, page):
@@ -316,11 +356,27 @@ class Pdf_Polygon(object):
             self.attrs[k] = v
 
 
+def main():
+    
+    client = utils.choices(ref.clients)
+    project_name = os.getcwd().split(os.sep)[-1]
+    seed_file = utils.client_seed_file(client)
+    fdf_file = [f for f in os.listdir('.') if f[-4:] == '.fdf'][0]
 
-pd2Seed = 'E:\\Files\\Documents\\Jared\\Work\\DMI\\eQuest\\Scripts\\seed.pd2'
+    seed_building = eo.Building()
+    seed_building.load(seed_file)
 
-pdf = Pdf_File('../test/pdf/JC_Takeoffs.fdf', '../test/pdf/fdf.json')
+    pdf = Pdf_File(fdf_file)
+    pdf.define()
+    pdf.create()
+
+    building = seed_building + pdf.b
+    pdf.b.dump(project_name.lower() + '.inp')
+
+    print '\n'.join(pdf.messages)
+
+if __name__ == '__main__':
+    main()
 
 
-pdf.b.write('../test/output/new.inp')
-print '\n'.join(pdf.messages)
+#pd2Seed = 'E:\\Files\\Documents\\Jared\\Work\\DMI\\eQuest\\Scripts\\seed.pd2'

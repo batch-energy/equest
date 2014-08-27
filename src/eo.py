@@ -413,6 +413,8 @@ class Space(Object):
             if zone.get('SPACE') == self.name:
                 return zone
 
+    def system(self):
+        return self.zone().system()
 
 class Wall(Object):
 
@@ -600,7 +602,7 @@ class Door(Wall_Object):
 
 class System(Object):
 
-    def __init__ (self, b, name=None, kind=None):
+    def __init__ (self, b, name=None, kind='SYSTEM', parent=None):
 
         Object.__init__(self, b, name, kind)
 
@@ -611,4 +613,8 @@ class Zone(Object):
 
         Object.__init__(self, b, name, kind, parent)
 
-    
+    def space(self):
+        return self.attr('SPACE')
+
+    def system(self):
+        return self.parent
