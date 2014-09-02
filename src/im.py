@@ -45,8 +45,6 @@ class Pdf_File(object):
     def define(self):
         '''Query user to provide information about the building floors'''
 
-
-    def define(self):
         self.define_floors()
     
     def create(self):
@@ -110,7 +108,7 @@ class Pdf_File(object):
                 page.name = page.origins[0].name
                 if page.name in page_names:
                     self.messages.append('Multiple Origins with name %s' % (page.name))
-                self.messages += page.origins[0].set_orientation()
+                page.origins[0].set_orientation()
 
             # check scales
             if len(page.scales) != 1:
@@ -132,22 +130,19 @@ class Pdf_File(object):
 
     def verify_polygons(self):
         '''Ensure the polygons were filled out correctly'''
-        valid_poly_attrs = ['Z', 'H', 'HP', 'PH', 'X', 'Y', 'R', 'ET']
+        valid_poly_attrs = ['Z', 'H', 'HP', 'PH']
         for name, page in self.pages.items():
             for polygon in page.polygons:                
                 for key in polygon.attrs.keys():
                     if not key in valid_poly_attrs:
                         self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
-                    elif key == 'ET':       
-                        if polygon.attrs['ET'] not in self.pages:
-                            self.messages.append('No matching extend to for %s on floor %s' % (polygon.name, page.name))
-                if not polygon.name:
-                    self.messages.append('Missing name in polygon on floor %s' % polygon.attrs['ET'])
 
     def define_floors(self):
         '''Read the json file which contains the floor definitions'''
 
-        attrs = OrderedDict([('x',0), ('y',0), ('z',0), ('floor height',None), ('plenum height',None), ('default plenum',False)])
+        attrs = OrderedDict([('x',0), ('y',0), ('z',0), 
+            ('floor height',None), ('plenum height',None), 
+            ('default plenum',False)])
 
         if os.path.exists(ref.spaces_json):
             with open(ref.spaces_json) as f:
@@ -189,91 +184,106 @@ class Pdf_File(object):
             json.dump(self.spec, f, indent=4, separators=(',', ': '))
 
     def create_floors(self):
-        '''Create floors
+        '''Create floors'''
         
-        Some data in the spec file may be omitted and derived from the
-        surrounding data.  This function fills in those values so that the 
-        data is explicit
-        '''
-        
-        cur_f, cur_z, cur_h, cur_ph, cur_hp = None, 0,0,3,0
-
-        for i, (floor_name, spec_attrs) in enumerate(self.spec.items()):
+        for floor_name, spec_attrs in self.spec.items():
             floor = eo.Floor(self.b, name=str(floor_name))
-            floor.attr['Z'] = self.spec[floor_name].get('Z', cur_z + cur_h)
+            floor.attr['Z'] = self.spec[floor_name]['z']
 
-
-            # Establish has plenum and plenum height
-            if 'PH' in spec_attrs or 'HP' in spec_attrs:
-                floor.has_plenum = 1                
-                if 'PH' in spec_attrs:
-                    floor.plenum_height = self.spec[floor_name]['PH']
-                else:
-                    floor.plenum_height = cur_ph
-            else:
-                floor.has_plenum = 0
-
-            # Assign floor and space heights
-            floor.attr['FLOOR-HEIGHT'] = self.spec[floor_name].get('H', cur_h)
-            if floor.has_plenum:
-                floor.attr['SPACE-HEIGHT'] = floor.attr['FLOOR-HEIGHT'] - self.spec[floor_name]['PH']
-            else:
-                floor.attr['SPACE-HEIGHT'] = floor.attr['FLOOR-HEIGHT']
-                
-            # Check gap
-            if i:
-                gap = ((floor.attr['Z'] - cur_h ) - cur_z)
-                if abs(gap) > 0.1:            
-                    self.messages.append('Unexpected Gap of %.2f between %s and %s' % (gap , cur_f, floor_name))
-
-            # Set defaults for next go around
-            cur_z = floor.attr['Z']
-            cur_h = floor.attr['FLOOR-HEIGHT']
-            cur_ph = self.spec[floor_name].get('PH', cur_ph)
-            cur_hp = self.spec[floor_name].get('HP', cur_hp)
-            cur_f = floor_name
+            floor.attr['FLOOR-HEIGHT'] = self.spec[floor_name]['floor height']
+            floor.attr['SPACE-HEIGHT'] = (floor.attr['FLOOR-HEIGHT'] - 
+                self.spec[floor_name]['plenum height'])
 
     def process_polygons(self):
 
-        for name, page in self.pages.items():
-            reversed = page.origins[0].reversed
-            x_mirror = page.origins[0].x_mirror
-            y_mirror = page.origins[0].y_mirror
-            factor = page.scales[0].factor
-            origin_x = page.origins[0].x
-            origin_y = page.origins[0].y
-
+        for page_name, page in self.pages.items():
             for fdf_polygon in page.polygons:
                 name = '"%s-%s_poly"' % (page.name, fdf_polygon.name)
                 polygon = eo.Polygon(self.b, name=name)
-                for verticy in fdf_polygon.vertices:
-                    if not reversed:
-                        x = factor * (verticy[0]-origin_x) * x_mirror
-                        y = factor * (verticy[1]-origin_y) * y_mirror
-                    else:
-                        x = factor * (verticy[1]-origin_x) * x_mirror
-                        y = factor * (verticy[0]-origin_y) * y_mirror
-                    polygon.vertices.append([x,y])
+                polygon.vertices = self.set_vertices(page, fdf_polygon)
+                self.create_space(page, fdf_polygon, polygon)
 
-                self.create_space(fdf_polygon, page, polygon)
-                
-    def create_space(self, fdf_polygon, page, polygon):
+    def set_vertices(self, page, fdf_polygon):                
+        '''Set vertices for the newly created polygon'''
+
+        reversed = page.origins[0].reversed
+        x_mirror = page.origins[0].x_mirror
+        y_mirror = page.origins[0].y_mirror
+        factor = page.scales[0].factor
+        origin_x = page.origins[0].x
+        origin_y = page.origins[0].y
+
+        vertices = []
+        x_offset = self.spec[page.name]['x']
+        y_offset = self.spec[page.name]['y']
+        for verticy in fdf_polygon.vertices:
+            if not reversed:
+                x = (factor * (verticy[0]-origin_x) * x_mirror + 
+                    x_offset)
+                y = (factor * (verticy[1]-origin_y) * y_mirror + 
+                    y_offset)
+            else:
+                x = (factor * (verticy[1]-origin_x) * x_mirror + 
+                    x_offset)
+                y = (factor * (verticy[0]-origin_y) * y_mirror + 
+                    y_offset)
+            vertices.append([x,y])
+        return vertices
+
+    def create_space(self, page, fdf_polygon, polygon):
+
         floor = self.b.objects[page.name]
 
-        name = '"' + page.name + '-' + fdf_polygon.name + '"'
-        space = eo.Space(self.b, name=name)
+        z = fdf_polygon.attrs.get('Z')
+        h = fdf_polygon.attrs.get('H')
 
-        space.parent = floor
+        if h != None:
+            floor_height = float(fdf_polygon.attrs['H'])
+        elif z != None:
+            floor_height = floor.attr['SPACE-HEIGHT'] - float(z)
+        else:
+            floor_height = self.spec[page.name]['floor height']
+            
+        if 'PH' in fdf_polygon.attrs:
+            plenum_height = float(fdf_polygon.attrs['PH'])
+        else:
+            plenum_height = self.spec[page.name]['plenum height']
+        
+        if not plenum_height:
+            has_plenum = False
+        elif 'HP' in fdf_polygon.attrs:
+            has_plenum = fdf_polygon.attrs['HP'][0] == 'Y'
+        else:
+            has_plenum = self.spec[page.name]['default plenum']
+        
+        space_height = floor_height - plenum_height
+        if z != None:
+            plenum_z = float(z) + space_height
+        else:
+            plenum_z = space_height
+        
+        name = '"' + page.name + '-' + fdf_polygon.name + '"'
+        space = eo.Space(self.b, name, 'SPACE', floor)
+
         space.attr['ZONE-TYPE'] = 'CONDITIONED'
         space.attr['POLYGON'] = polygon.name
         space.attr['SHAPE'] = 'POLYGON'
-            
-        if floor.has_plenum:
-            name = name[:-1] + '_p"'
-            space = eo.Space(self.b, name=name)
-            space.attr['ZONE-TYPE'] = 'PLENUM'
-            space.attr['POLYGON'] = polygon.name
 
+        if abs(space_height - floor.attr['SPACE-HEIGHT']) > 0.1:
+            space.attr['H'] = space_height
+
+        if z:
+            space.attr['Z'] = z
+            
+        if floor.has_plenum():
+            name = name[:-1] + '_p"'
+            plenum_space = eo.Space(self.b, name=name)
+            plenum_space.attr['ZONE-TYPE'] = 'PLENUM'
+            plenum_space.attr['POLYGON'] = polygon.name
+            if abs(plenum_height - (floor.attr['FLOOR-HEIGHT']-floor.attr['SPACE-HEIGHT'])) > 0.1:
+                plenum_space.attr['H'] = plenum_space_height
+            if abs(plenum_z - floor.attr['SPACE-HEIGHT']) > 0.1:
+                plenum_space.attr['Z'] = plenum_z
 
 class Pdf_Page(object):
 
@@ -297,8 +307,6 @@ class Pdf_Origin(object):
         
     def set_orientation(self):
 
-        messages = []
-
         pt1 = [self.vertices[0][0], self.vertices[0][1]]
         pt2 = [self.vertices[1][0], self.vertices[1][1]]
         pt3 = [self.vertices[2][0], self.vertices[2][1]]
@@ -318,8 +326,6 @@ class Pdf_Origin(object):
             self.y, self.x = pt2
             if pt1[0] < pt2[0]: self.y_mirror = -1
             if pt3[1] < pt2[1]: self.x_mirror = -1
-
-        return messages
 
 
 class Pdf_Scale(object):

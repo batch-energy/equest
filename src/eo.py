@@ -320,6 +320,12 @@ class Floor(Object):
     def z(self):
         return self.get('Z')
 
+    def plenum_height(self):
+        return self.attr.get('FLOOR-HEIGHT') - self.attr.get('SPACE-HEIGHT')
+    
+    def has_plenum(self):
+        return (self.plenum_height > 0)
+
     def delete(self):
         for space in self.children:
             space.delete()

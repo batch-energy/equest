@@ -1,4 +1,4 @@
-clients = ['dmi', 'tmz']
+clients = ['dmi', 'tnz']
 
 spaces_json = 'spaces.json'
 
