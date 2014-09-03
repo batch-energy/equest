@@ -1,4 +1,18 @@
-import os, utils
+import os, utils, textwrap
+
+def splitter(s):
+    pad = ' '*9
+    if s.count(',') > 1:
+        # put items of comma separated list on separate lines
+        text = '   ' + (',\n' + pad).join([i.strip() for i in s.split(',')])
+
+    else:
+        # otherwise, just make sure it's not more than 75 charaters
+        wrapper = textwrap.TextWrapper(width=75, subsequent_indent=pad)
+        text = '\n'.join(wrapper.wrap(s))
+
+    return text
+
 
 def src_dir():
     return os.path.dirname(__file__)

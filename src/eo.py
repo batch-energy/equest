@@ -1,5 +1,5 @@
 from collections import OrderedDict
-import re, time, os, ref, textwrap, e_math, math
+import re, time, os, ref, e_math, math, utils
 from shapely.geometry import Polygon as Poly
 from shapely.geometry import Point as Pt
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
@@ -23,6 +23,7 @@ class Point(object):
 class Building(object):
     def __init__(self):
         self.objects = OrderedDict()
+        self.defaults = OrderedDict()
         self.selected = []
 
     def load(self, fn):
@@ -58,12 +59,15 @@ class Building(object):
         
         t = ''
         for kind in ref.kind_list:
+
+            if kind in self.defaults:
+                for default in self.defaults[kind].values():
+                    t += default.write()
+            
             if not kind in ref.parents.keys():
                 for o in self.kinds(kind).values():
                     t += o.write()
-            default = self.objects.get('SET-DEFAULT FOR ' + kind)
-            if default:
-                t += default.write()
+
         self.write(fn, t)
 
     def write(self, fn, t):
@@ -96,8 +100,20 @@ class Building(object):
         current_parent = {}
         for object_text in object_text_list:            
             lines = object_text.split('\n')
+
+            if 'SET-DEFAULT' in lines[0]:
+                types = [line.split('=')[1].strip() 
+                    for line in lines 
+                    if len(line.split('='))>1 
+                    and line.split('=')[0].strip()=='TYPE']
+
+                type = types[0] if types else None
+                kind = lines[0].split()[-1]
+                d = Default(self, kind, type)
+                d.read(lines)
+                continue
                         
-            if '=' in lines[0]:
+            elif '=' in lines[0]:
                 name, kind = [s.strip() for s in lines[0].split('=')]
             else:
                 name, kind = lines[0], lines[0]
@@ -106,6 +122,7 @@ class Building(object):
                 parent = current_parent[ref.parents[kind]]
             else:
                 parent = None
+
 
             # Load special objects
             if kind == 'FLOOR':
@@ -155,13 +172,50 @@ class Building(object):
     def selected_by_kind(self, kind):
         return [name for name, object in self.kinds(kind).items() if object.selected]
 
+class Default(object):
+
+    def __init__(self, b, kind, type=None):
+        self.b = b
+        self.kind = kind
+        if not kind in b.defaults:
+            b.defaults[kind] = {}
+        b.defaults[kind][type] = self
+        self.attr = OrderedDict()
+
+    def read(self, lines):
+
+        for line in lines[1:]:
+            if '=' in line:
+                n, v = re.split("\s*=\s*", line, maxsplit=1)
+            else:
+                n, v = line, None
+            self.attr[n] = v        
+
+    def write(self):
+
+        t = 'SET-DEFAULT FOR %s\n' % self.kind
+        
+        for k, v in self.attr.items():
+            a = '   '
+            if v != None:
+                a += k + ' = ' + str(v)
+            else:
+                a = '   ' + k 
+            t += utils.splitter(a) + '\n'
+
+        t += '   ..\n'
+        return t
+        
+        
+    def delete(self):
+        del self
+
 
 class Object(object):
 
     def __init__(self, b, name=None, kind=None, parent=None):
         self.b = b
         b.objects[name] = self
-        self.is_default = False
         self.attr = OrderedDict()
         self.kind = kind
         self.name = name
@@ -183,21 +237,18 @@ class Object(object):
         del self
         
     def read(self, lines):
-        if lines:
-            if 'SET-DEFAULT FOR' in lines[0]:
-                self.is_default = True
 
-            for line in lines[1:]:
-                if '=' in line:
-                    n, v = re.split("\s*=\s*", line, maxsplit=1)
-                else:
-                    n, v = line, None
-                self.attr[n] = v        
+        for line in lines[1:]:
+            if '=' in line:
+                n, v = re.split("\s*=\s*", line, maxsplit=1)
+            else:
+                n, v = line, None
+            self.attr[n] = v        
 
     def write(self):
 
         t = ''
-        if self.is_default or not self.has_name:
+        if not self.has_name:
             t += self.kind + '\n'        
         else:
             t += self.name + ' = ' + self.kind + '\n'
@@ -208,7 +259,7 @@ class Object(object):
                 a += k + ' = ' + str(v)
             else:
                 a = '   ' + k 
-            t += self.splitter(a) + '\n'
+            t += utils.splitter(a) + '\n'
 
         t += '   ..\n'
 
@@ -217,19 +268,6 @@ class Object(object):
 
         return t
 
-    def splitter(self, s):
-        pad = ' '*9
-        if s.count(',') > 1:
-            # put items of comma separated list on separate lines
-            text = '   ' + (',\n' + pad).join([i.strip() for i in s.split(',')])
-
-        else:
-            # otherwise, just make sure it's not more than 75 charaters
-            wrapper = textwrap.TextWrapper(width=75, subsequent_indent=pad)
-            text = '\n'.join(wrapper.wrap(s))
-
-        return text
-            
     def get(self, attr):
         if attr in self.attr:
             value = self.attr[attr]
