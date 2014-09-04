@@ -8,7 +8,7 @@ from pprint import pprint as pp
 
 class Filter(object):
     def __init__(self):
-        attrs = {}
+        attr = {}
 
 
 class Point(object):
@@ -35,6 +35,36 @@ class Building(object):
     def read(self, text):
         text = self.clean_file(text)
         self.objectify(self.split_objects(text))
+
+    def extend(self, other):
+        '''Extends this building with the objects in another'''
+
+        messages = []
+        for name, object in other.objects.items():
+            if not object in self.objects:
+                self.objects[name] = object
+            else:
+                if self.objects[name].kind != object.kind:
+                    messages.append['Conflict in extend: Kind mismatch for ' + name]
+                    continue
+                for k, v in object.attr.items():
+                    if not k in self.objects[name].attr:
+                        self.objects.attr[k] = v
+                    elif self.objects[name].attr[k] != v:
+                        messages.append['Conflict in extend: %s/%s Exists' & (name, k)]
+
+        for name, kind in other.defaults.items():
+            if not name in self.defaults:
+                self.defaults[name] = {}
+            for default_type, default in kind.items():
+                if not default_type in self.defaults[name]:
+                    self.defaults[name][default_type] = default
+                else:
+                    for k, v in self.defaults[name][default_type].attr:
+                        if not k in self.defaults[name][default_type].attr:
+                            self.defaults[name][default_type].attr[k] = v
+                        elif self.defaults[name][default_type].attr[k] != v:
+                            messages.append['Conflict in extend: default[%s][%s] Exists' & (name, default_type)]
 
     def kinds(self, kind):
         '''OrderedDict of objects only of kind'''
@@ -102,14 +132,14 @@ class Building(object):
             lines = object_text.split('\n')
 
             if 'SET-DEFAULT' in lines[0]:
-                types = [line.split('=')[1].strip() 
+                default_types = [line.split('=')[1].strip()
                     for line in lines 
                     if len(line.split('='))>1 
                     and line.split('=')[0].strip()=='TYPE']
 
-                type = types[0] if types else None
+                default_type = default_types[0] if default_types else None
                 kind = lines[0].split()[-1]
-                d = Default(self, kind, type)
+                d = Default(self, kind, default_type)
                 d.read(lines)
                 continue
                         
@@ -174,12 +204,12 @@ class Building(object):
 
 class Default(object):
 
-    def __init__(self, b, kind, type=None):
+    def __init__(self, b, kind, default_type=None):
         self.b = b
         self.kind = kind
         if not kind in b.defaults:
             b.defaults[kind] = {}
-        b.defaults[kind][type] = self
+        b.defaults[kind][default_type] = self
         self.attr = OrderedDict()
 
     def read(self, lines):

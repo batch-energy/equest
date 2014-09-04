@@ -372,12 +372,13 @@ def main():
     seed_building = eo.Building()
     seed_building.load(seed_file)
     seed_building.dump(project_name.lower() + '.inp')
-    #pdf = Pdf_File(fdf_file)
-    #pdf.define()
-    #pdf.create()
 
-    #building = seed_building + pdf.b
-    #pdf.b.dump(project_name.lower() + '.inp')
+    pdf = Pdf_File(fdf_file)
+    pdf.define()
+    pdf.create()
+
+    pdf.b.extend(seed_building)
+    pdf.b.dump(project_name.lower() + '.inp')
 
     print '\n'.join(pdf.messages)
 
