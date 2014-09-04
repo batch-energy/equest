@@ -23,7 +23,7 @@ def get_angle(p1, p2, style='doe'):
         atan = math.atan((y2-y1)/(x2-x1)) *180 / 3.14159
     except ZeroDivisionError:
         atan = 90
-        
+
     if x2 >= x1 and y2 >= y1:
         a = 180 - atan
     elif x2 <= x1 and y2 >= y1:
@@ -32,14 +32,14 @@ def get_angle(p1, p2, style='doe'):
         a = 360 - atan
     elif x2 >= x1 and y2 <= y1:
         a = 180 - atan
-    
+
     if style == 'doe':
         return a
     else:
         return swap_angle(a)
 
 def get_angle_name(a):
-    directions = ['North', 'North West', 'West', 'South West', 'South', 
+    directions = ['North', 'North West', 'West', 'South West', 'South',
         'South East', 'East', 'North East', 'North']
     index = int(round(float(a)/8),0)
     return(directions[index])
@@ -65,7 +65,7 @@ def angle_distance(a, t):
 
 def opposite_angle_distance(a, t):
     return abs(180-(abs(a%360-t%360)))
-   
+
 def dist(x, y, a, xt, yt):
     if a==90 or a==270:
         d = abs(x-xt)
@@ -74,12 +74,12 @@ def dist(x, y, a, xt, yt):
         b = y-(m*x)
         A=m
         B=-1
-        C=b        
+        C=b
         d = abs(A*xt + B*yt + C)/math.sqrt(A**2 + B**2)
     return d
 
 
-def pdis(x1, y1, a, xt, yt, tol):  
+def pdis(x1, y1, a, xt, yt, tol):
     x2 = math.cos(math.radians(a)) + x1
     y2 = math.sin(math.radians(a)) + y1
 
@@ -100,10 +100,10 @@ def findProjectedDistance(a, xb, yb, x1, y1):
     d = dist(xb, yb, a, x1, y1)
     h = ((xb-x1)**2 + (yb-y1)**2)**.5
     return (h**2 - d**2)**.5
-    
+
 def rere(p):
     '''reverses and transposes polygon vertices'''
-    p.reverse() 
+    p.reverse()
     p = [[i[1], i[0]] for i in p]
 
 
@@ -111,7 +111,7 @@ def rotate(x, y, r):
     x = float(x)
     y = float(y)
     z = (x**2 + y**2)**.5
-    
+
     if x==0:
         if y > 0:
             a1 = 90
@@ -121,11 +121,11 @@ def rotate(x, y, r):
         a1 = math.degrees(math.atan(y/x))
     else:
         a1 = 180 + math.degrees(math.atan(y/x))
-    
+
     a2 = (a1 + r)%360
     x2 = math.cos(math.radians(a2)) * z
     y2 = math.sin(math.radians(a2)) * z
-    
+
     return x2, y2
 
 
@@ -137,7 +137,7 @@ def shapely_polygon_to_shapely_lines(polygon):
      n = len(polygon.exterior.coords)
      return [(LineString(
             [polygon.exterior.coords[c],
-            polygon.exterior.coords[c+1]])) 
+            polygon.exterior.coords[c+1]]))
             for c in range(0,n-1)]
 
 def shapely_line_string_angle(ls):
@@ -159,7 +159,7 @@ def shapely_to_eQuest_poly(obj):
             if not is_ccw(l):
                 l.reverse()
             m.append(l)
-        
+
     elif type(obj) == Poly:
         m = []
         t = obj.exterior.coords
@@ -203,7 +203,7 @@ def returnTrueCoords(o, p, rotate, scale=9):
         y2 = (float(p[2]) - o[1])/scale
     else:
         print 'I do not recognize the rotate value'
-    
+
     return [[x1, y1], [x2,y2]]
 
 def getParams(s):
@@ -220,8 +220,8 @@ def getParams(s):
         name = s
         p = []
     l = [name, p]
-    return l    
+    return l
 
 
-    
-    
+
+

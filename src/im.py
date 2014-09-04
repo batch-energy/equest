@@ -19,7 +19,7 @@ def convert_json(input):
         return input.encode('utf-8')
     else:
         return input
-    
+
 def get_fdf_attribute(attr, line):
     pat = '(?<=/%s\\b).*?(?=[>/])' % attr
     chunk_re = re.findall(pat, line)
@@ -27,10 +27,10 @@ def get_fdf_attribute(attr, line):
         return chunk_re[0].strip()
     else:
         return None
-    
+
 
 class Pdf_File(object):
-    
+
     def __init__(self, pdf_path, seed=None):
         self.pdf_path = pdf_path
         self.page_numbers = OrderedDict()
@@ -46,38 +46,38 @@ class Pdf_File(object):
         '''Query user to provide information about the building floors'''
 
         self.define_floors()
-    
+
     def create(self):
         '''
         Once the pdf file is read and the floors are defined, the building
         can be created
         '''
-        
+
         self.create_floors()
         self.process_polygons()
 
     def read_pdf(self):
         f = open(self.pdf_path, 'rb')
         text = f.read()
-        lines = [line.replace('\n', ' ') 
+        lines = [line.replace('\n', ' ')
             for line in re.findall('obj.*?endobj', text, re.DOTALL)]
 
         self.parse(lines)
         if self.messages:
             return self.messages
 
-        self.verify_specials()        
+        self.verify_specials()
         if self.messages:
             return self.messages
 
-        self.make_page_dict()        
+        self.make_page_dict()
 
         self.verify_polygons()
         if self.messages:
             return self.messages
-            
+
     def parse(self, lines):
-        '''Need to search through the objects... we don't know the 
+        '''Need to search through the objects... we don't know the
         page names yet so we create an OrderedDict based on the page number'''
         for line in lines:
             page_number = get_fdf_attribute('Page', line)
@@ -132,7 +132,7 @@ class Pdf_File(object):
         '''Ensure the polygons were filled out correctly'''
         valid_poly_attrs = ['Z', 'H', 'HP', 'PH']
         for name, page in self.pages.items():
-            for polygon in page.polygons:                
+            for polygon in page.polygons:
                 for key in polygon.attrs.keys():
                     if not key in valid_poly_attrs:
                         self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
@@ -140,8 +140,8 @@ class Pdf_File(object):
     def define_floors(self):
         '''Read the json file which contains the floor definitions'''
 
-        attrs = OrderedDict([('x',0), ('y',0), ('z',0), 
-            ('floor height',None), ('plenum height',None), 
+        attrs = OrderedDict([('x',0), ('y',0), ('z',0),
+            ('floor height',None), ('plenum height',None),
             ('default plenum',False)])
 
         if os.path.exists(ref.spaces_json):
@@ -179,19 +179,19 @@ class Pdf_File(object):
                     attrs['z'] = self.spec[page_name]['floor height'] + self.spec[page_name]['z']
                 else:
                     attrs[attr] = new_default
-        
+
         with open(ref.spaces_json, 'wb') as f:
             json.dump(self.spec, f, indent=4, separators=(',', ': '))
 
     def create_floors(self):
         '''Create floors'''
-        
+
         for floor_name, spec_attrs in self.spec.items():
             floor = eo.Floor(self.b, name=str(floor_name))
             floor.attr['Z'] = self.spec[floor_name]['z']
 
             floor.attr['FLOOR-HEIGHT'] = self.spec[floor_name]['floor height']
-            floor.attr['SPACE-HEIGHT'] = (floor.attr['FLOOR-HEIGHT'] - 
+            floor.attr['SPACE-HEIGHT'] = (floor.attr['FLOOR-HEIGHT'] -
                 self.spec[floor_name]['plenum height'])
 
     def process_polygons(self):
@@ -203,7 +203,7 @@ class Pdf_File(object):
                 polygon.vertices = self.set_vertices(page, fdf_polygon)
                 self.create_space(page, fdf_polygon, polygon)
 
-    def set_vertices(self, page, fdf_polygon):                
+    def set_vertices(self, page, fdf_polygon):
         '''Set vertices for the newly created polygon'''
 
         reversed = page.origins[0].reversed
@@ -218,14 +218,14 @@ class Pdf_File(object):
         y_offset = self.spec[page.name]['y']
         for verticy in fdf_polygon.vertices:
             if not reversed:
-                x = (factor * (verticy[0]-origin_x) * x_mirror + 
+                x = (factor * (verticy[0]-origin_x) * x_mirror +
                     x_offset)
-                y = (factor * (verticy[1]-origin_y) * y_mirror + 
+                y = (factor * (verticy[1]-origin_y) * y_mirror +
                     y_offset)
             else:
-                x = (factor * (verticy[1]-origin_x) * x_mirror + 
+                x = (factor * (verticy[1]-origin_x) * x_mirror +
                     x_offset)
-                y = (factor * (verticy[0]-origin_y) * y_mirror + 
+                y = (factor * (verticy[0]-origin_y) * y_mirror +
                     y_offset)
             vertices.append([x,y])
         return vertices
@@ -243,25 +243,25 @@ class Pdf_File(object):
             floor_height = floor.attr['SPACE-HEIGHT'] - float(z)
         else:
             floor_height = self.spec[page.name]['floor height']
-            
+
         if 'PH' in fdf_polygon.attrs:
             plenum_height = float(fdf_polygon.attrs['PH'])
         else:
             plenum_height = self.spec[page.name]['plenum height']
-        
+
         if not plenum_height:
             has_plenum = False
         elif 'HP' in fdf_polygon.attrs:
             has_plenum = fdf_polygon.attrs['HP'][0] == 'Y'
         else:
             has_plenum = self.spec[page.name]['default plenum']
-        
+
         space_height = floor_height - plenum_height
         if z != None:
             plenum_z = float(z) + space_height
         else:
             plenum_z = space_height
-        
+
         name = '"' + page.name + '-' + fdf_polygon.name + '"'
         space = eo.Space(self.b, name, 'SPACE', floor)
 
@@ -274,7 +274,7 @@ class Pdf_File(object):
 
         if z:
             space.attr['Z'] = z
-            
+
         if floor.has_plenum():
             name = name[:-1] + '_p"'
             plenum_space = eo.Space(self.b, name=name)
@@ -292,7 +292,7 @@ class Pdf_Page(object):
         self.polygons = []
         self.origins = []
         self.scales = []
-    
+
 
 class Pdf_Origin(object):
 
@@ -304,7 +304,7 @@ class Pdf_Origin(object):
         vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
         vl = [float(n) for n in vertices_string.split()]
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
-        
+
     def set_orientation(self):
 
         pt1 = [self.vertices[0][0], self.vertices[0][1]]
@@ -312,8 +312,8 @@ class Pdf_Origin(object):
         pt3 = [self.vertices[2][0], self.vertices[2][1]]
         self.x_mirror = 1
         self.y_mirror = 1
-        
-        # test if point 1's dy > dx 
+
+        # test if point 1's dy > dx
         if abs(pt2[1]-pt1[1]) > abs(pt2[0]-pt1[0]):
             # y location bound to up
             self.reversed = False
@@ -352,7 +352,7 @@ class Pdf_Polygon(object):
         vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
         vl = [float(n) for n in vertices_string.split()]
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)][:-1]
-        
+
         name = get_fdf_attribute('T', line)
         name_clean = re.sub(r'[\[\]\;\(\)]', ' ', name)
         name_split = name_clean.split()
@@ -363,7 +363,7 @@ class Pdf_Polygon(object):
 
 
 def main():
-    
+
     client = utils.choices(ref.clients)
     project_name = os.getcwd().split(os.sep)[-1]
     seed_file = utils.client_seed_file(client)

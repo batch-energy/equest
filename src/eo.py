@@ -77,23 +77,23 @@ class Building(object):
     def dump(self, fn=None, backup=False):
 
         fn = fn or self.fn
-    
+
         if backup:
             if not os.path.exists('backup'):
-                os.mkdir('backup')             
+                os.mkdir('backup')
             fn = os.path.join('backup', fn.replace(
                 '.inp', time.strftime('_%y%m%d-%H%M%S.inp')))
-        
+
         if os.path.exists(fn):
-            os.remove(fn)            
-        
+            os.remove(fn)
+
         t = ''
         for kind in ref.kind_list:
 
             if kind in self.defaults:
                 for default in self.defaults[kind].values():
                     t += default.write()
-            
+
             if not kind in ref.parents.keys():
                 for o in self.kinds(kind).values():
                     t += o.write()
@@ -107,15 +107,15 @@ class Building(object):
     def clean_file(self, text):
         return '\n'.join([l.strip() for l in text.split('\n')
             if l.strip() and not l.strip()[0] == '$'])
-    
-    def split_objects(self, text):    
+
+    def split_objects(self, text):
         return [self.clean_object(o) for o in text.split('..')]
 
     def clean_object(self, object):
         lines = [l.strip() for l in object.split('\n') if l.strip()]
         new_line, new_lines = '', []
         opens, closes = 0 ,0
-    
+
         for i, line in enumerate(lines):
             new_line += line
             opens += len(re.findall('[\{\(]', line))
@@ -123,18 +123,18 @@ class Building(object):
             if opens == closes and line[-1] != '=':
                 new_lines.append(new_line)
                 new_line = ''
-    
+
         return '\n'.join(new_lines)
-    
+
     def objectify(self, object_text_list):
         current_parent = {}
-        for object_text in object_text_list:            
+        for object_text in object_text_list:
             lines = object_text.split('\n')
 
             if 'SET-DEFAULT' in lines[0]:
                 default_types = [line.split('=')[1].strip()
-                    for line in lines 
-                    if len(line.split('='))>1 
+                    for line in lines
+                    if len(line.split('='))>1
                     and line.split('=')[0].strip()=='TYPE']
 
                 default_type = default_types[0] if default_types else None
@@ -142,12 +142,12 @@ class Building(object):
                 d = Default(self, kind, default_type)
                 d.read(lines)
                 continue
-                        
+
             elif '=' in lines[0]:
                 name, kind = [s.strip() for s in lines[0].split('=')]
             else:
                 name, kind = lines[0], lines[0]
-            
+
             if kind in ref.parents.keys():
                 parent = current_parent[ref.parents[kind]]
             else:
@@ -175,7 +175,7 @@ class Building(object):
                 o = Zone(self, name, kind, parent=parent)
             elif kind == 'POLYGON':
                 o = Polygon(self, name, kind)
-            else:            
+            else:
                 o = Object(self, name, kind, parent=parent)
             o.read(lines)
 
@@ -185,7 +185,7 @@ class Building(object):
         self.objects[name].selected = True
         if not self.objects[name].selected:
             self.selected.append(name)
-    
+
     def toggle(self, name):
         if self.objects[name].selected:
             self.selected.remove(name)
@@ -193,7 +193,7 @@ class Building(object):
         else:
             self.selected.append(name)
             self.objects[name].selected = True
-    
+
     def deselect(self, name):
         if self.objects[name].selected:
             self.selected.remove(name)
@@ -219,24 +219,24 @@ class Default(object):
                 n, v = re.split("\s*=\s*", line, maxsplit=1)
             else:
                 n, v = line, None
-            self.attr[n] = v        
+            self.attr[n] = v
 
     def write(self):
 
         t = 'SET-DEFAULT FOR %s\n' % self.kind
-        
+
         for k, v in self.attr.items():
             a = '   '
             if v != None:
                 a += k + ' = ' + str(v)
             else:
-                a = '   ' + k 
+                a = '   ' + k
             t += utils.splitter(a) + '\n'
 
         t += '   ..\n'
         return t
-        
-        
+
+
     def delete(self):
         del self
 
@@ -255,7 +255,7 @@ class Object(object):
 
         if self.parent:
             self.parent.children.append(self)
-        
+
         if name==kind:
             self.has_name = False
         else:
@@ -263,9 +263,9 @@ class Object(object):
 
     def delete(self):
         if self.parent:
-            self.parent.children.pop(self)        
+            self.parent.children.pop(self)
         del self
-        
+
     def read(self, lines):
 
         for line in lines[1:]:
@@ -273,13 +273,13 @@ class Object(object):
                 n, v = re.split("\s*=\s*", line, maxsplit=1)
             else:
                 n, v = line, None
-            self.attr[n] = v        
+            self.attr[n] = v
 
     def write(self):
 
         t = ''
         if not self.has_name:
-            t += self.kind + '\n'        
+            t += self.kind + '\n'
         else:
             t += self.name + ' = ' + self.kind + '\n'
 
@@ -288,7 +288,7 @@ class Object(object):
             if v != None:
                 a += k + ' = ' + str(v)
             else:
-                a = '   ' + k 
+                a = '   ' + k
             t += utils.splitter(a) + '\n'
 
         t += '   ..\n'
@@ -323,20 +323,20 @@ class Object(object):
         else:
             return True
 
-        
+
 class Polygon(Object):
 
     def __init__ (self, b, name=None, kind='POLYGON'):
         self.b = b
         self.vertices = []
         Object.__init__(self, b, name, kind)
-        
+
     def delete_verticy(self, v):
         self.vertices.pop(v+1)
-    
+
     def add_verticy(self, point, verticy):
         self.vertices.insert(verticy+1, point)
-        
+
     def read(self, lines):
         self.vertices = []
 
@@ -345,18 +345,18 @@ class Polygon(Object):
                 n, v = [s.strip() for s in  line.split('=')]
             else:
                 n, v = line, None
-            self.attr[n] = v        
+            self.attr[n] = v
             x, y = v[1:-1].split(',')
             self.vertices.append([float(x),float(y)])
 
     def write(self):
         t = self.name + ' = ' + self.kind + '\n'
 
-        for i, (x, y) in enumerate(self.vertices, start=1):  
+        for i, (x, y) in enumerate(self.vertices, start=1):
             t += '   V%s = ( %s, %s )\n' % (i, x, y)
         t += '   ..\n'
         return t
-        
+
     def area(self):
         p = Poly(self.vertices)
         return p.area
@@ -367,7 +367,7 @@ class Polygon(Object):
         for i in range(count):
             if e_math.distance(self.vertices[i], self.vertices[i%count]) > tol:
                 new.append(self.vertices[i])
-    
+
     def get_vertices(self, v):
         vertices = self.vertices + [self.vertices[0]]
         return vertices[v-1:v+1]
@@ -390,7 +390,7 @@ class Floor(Object):
 
     def plenum_height(self):
         return self.attr.get('FLOOR-HEIGHT') - self.attr.get('SPACE-HEIGHT')
-    
+
     def has_plenum(self):
         return (self.plenum_height > 0)
 
@@ -405,7 +405,7 @@ class Space(Object):
     def __init__ (self, b, name=None, kind='SPACE', parent=None):
 
         Object.__init__(self, b, name, kind, parent)
-    
+
     def z(self):
         if 'Z' in self.attr:
             return self.attr['Z']
@@ -413,7 +413,7 @@ class Space(Object):
             return self.parent.get('SPACE-HEIGHT')
         else:
             return self.get('Z')
-    
+
     def x_global(self):
         return self.parent.x() + self.get('X')
 
@@ -423,20 +423,20 @@ class Space(Object):
     def z_global(self):
         return self.parent.z() + self.z()
 
-    def height(self):        
+    def height(self):
         if 'HEIGHT' in self.attr:
             return self.attr['HEIGHT']
         elif self.is_plenum():
             return self.parent.get('FLOOR-HEIGHT') - self.parent.get('SPACE-HEIGHT')
         else:
             return self.parent.get('SPACE-HEIGHT')
- 
+
     def is_plenum(self):
         return self.get('ZONE-TYPE') == 'PLENUM'
-        
+
     def polygon(self):
         return self.b.objects[self.get('POLYGON')]
-    
+
     def count_vertices(self):
         return len(self.vertices())
 
@@ -445,9 +445,9 @@ class Space(Object):
 
     def all_i_walls(self): # include ones for which this is the other space
         return [i_wall for i_wall in self.b.objects['INTERIOR-WALL']
-            if i_wall.parent.name == self.name or 
+            if i_wall.parent.name == self.name or
             i_wall.get('NEXT-TO') == self.name]
-        
+
     def i_walls(self):
         return [wall for wall in self.children if wall.kind == 'INTERIOR-WALL']
 
@@ -466,7 +466,7 @@ class Space(Object):
             k = '"%s-%s%s"' % (space_name, kind, c)
 
         return k
-    
+
     def delete(self):
         for wall in self.e_walls() + self.i_walls() + self.u_walls():
             wall.delete()
@@ -503,8 +503,8 @@ class Wall(Object):
     def doors(self, doors):
         return [window for window in self.b.objects['DOOR']
             if window.parent.name == self.name]
-    
-    
+
+
     def z(self):
 
         if 'Z' in self.attr:
@@ -516,7 +516,7 @@ class Wall(Object):
 
     def special_horizontal(self):
         return self.get('LOCATION') in ['TOP', 'BOTTOM']
-    
+
     def z_global(self):
         return self.parent.z_global() + self.z()
 
@@ -557,7 +557,7 @@ class Wall(Object):
         polygon = self.parent.polygon()
         side_number = self.get_side_number()
         return polygon.get_vertices(side_number)
-        
+
     def area(self):
         if self.shape == 'POLYGON':
             return self.b.objects[self.attr['POLYGON']].area()
@@ -565,12 +565,12 @@ class Wall(Object):
             return self.b.objects[self.parent.attr['POLYGON']].area()
         else:
             return self.width() * self.height()
-    
+
     def zone_type(self):
         return self.parent.zone_type()
 
     def angle(self, kind='doe'):
-        
+
         if self.tilt()%180 == 0:
             return None
 
@@ -597,7 +597,7 @@ class E_Wall(Wall):
     def windows(self):
         return [window for window in self.b.objects['WINDOW']
             if window.parent.name == self.name]
-    
+
     def doors(self):
         return [door for door in self.b.objects['DOOR']
             if door.parent.name == self.name]
@@ -618,8 +618,8 @@ class I_Wall(Wall):
     def __init__ (self, b, name=None, kind='INTERIOR-WALL', parent=None):
 
         Wall.__init__(self, b, name, kind, parent)
-        
-        
+
+
 class Wall_Object(Object):
 
     def __init__ (self, b, name, kind, parent):
@@ -641,7 +641,7 @@ class Wall_Object(Object):
         wall_z = self.parent.z_global()
         object_z = self.y() * math.sin(math.radians(self.parent.tilt))
         return wall_z + object_z
-        
+
     def area(self):
         return self.width() * self.height()
 
@@ -657,7 +657,7 @@ class Wall_Object(Object):
 
     def zone(self):
         return self.parent.zone()
-        
+
 
 class Window(Wall_Object):
 
@@ -671,7 +671,7 @@ class Door(Wall_Object):
     def __init__ (self, b, name=None, kind='DOOR', parent=None):
 
         Wall_Object.__init__(self, b, name, kind, parent)
-        
+
 
 
 class System(Object):

@@ -19,7 +19,7 @@ def src_dir():
 
 def template_dir():
     return os.path.join(src_dir(), 'templates')
-    
+
 def client_seed_file(client):
     return os.path.join(template_dir(), 'seed_' + client + '.inp')
 
@@ -29,7 +29,7 @@ def project_pd2_text(project_name):
     return text.replace('"Template_Project"', '"%s"' % project_name)
 
 def choices(l, quit=False):
-    
+
     while True:
         for i, choice in enumerate(l, 1):
             print ('%s - %s') % (i, choice)

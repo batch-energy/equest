@@ -5,7 +5,7 @@ def createHorizontalInteriorWalls():
     activeSpaces = returnActiveElements(spaces)
     floorMatchTolerance = 1
     minimumArea = 3
-    for activeSpace in sorted(activeSpaces):                        
+    for activeSpace in sorted(activeSpaces):
         iWallNum = 0
         activeSpaceVertices = polygons[spaces[activeSpace].polygon].numericalVertices()
         activeSpacePolygon = Poly(activeSpaceVertices)
@@ -13,7 +13,7 @@ def createHorizontalInteriorWalls():
             if abs((spaces[activeSpace].trueZ() + spaces[activeSpace].trueHeight()) - spaces[otherSpace].trueZ()) < floorMatchTolerance:
                 otherSpaceVertices = polygons[spaces[otherSpace].polygon].numericalVertices()
                 otherSpacePolygon = Poly(otherSpaceVertices)
-                
+
                 try:
                     intersection = activeSpacePolygon.intersection(otherSpacePolygon)
                 except:
@@ -22,7 +22,7 @@ def createHorizontalInteriorWalls():
                     #time.sleep(2)
 
                 polyList = []
-                #debug('') 
+                #debug('')
                 #debug(activeSpace)
                 if type(intersection) == MultiPolygon:
                     for poly in intersection.geoms:
@@ -30,22 +30,22 @@ def createHorizontalInteriorWalls():
                             polyList.append(poly)
                         else:
                             debug('INFO: polygon too small to count %s x %s' % (activeSpace, otherSpace))
-                        
-        
+
+
                 elif type(intersection) == Poly:
                     if intersection.area > minimumArea:
                         polyList.append(intersection)
                     else:
                         debug('INFO: polygon too small to count %s x %s' % (activeSpace, otherSpace))
-        
+
                 else:
                     debug(  '\n   No polygon intersection')
                     debug(  '   %s' % otherSpace)
-                
+
                 for poly in polyList:
                     iWallNum += 1
                     name = '"%s-IT+B-%s"' % (spaces[activeSpace].name[1:-1], iWallNum)
-                    
+
                     if spaces[activeSpace].floor == spaces[otherSpace].floor:
                         attributes = [['CONSTRUCTION', '"INTERIOR CEILING CONSTRUCTION"']]
                     else:
@@ -53,9 +53,9 @@ def createHorizontalInteriorWalls():
 
                     iWalls[name]=IWall(name=name, attributes=attributes, floor=spaces[activeSpace].floor, space=spaces[activeSpace].name)
                     iWalls[name].location = 'TOP'
-                    iWalls[name].nextTo = otherSpace 
+                    iWalls[name].nextTo = otherSpace
                     debug(  '   create iwall %s next to %s' % (activeSpace, otherSpace))
-                    
+
                     p = shapelyToEQuestPoly(poly)[0]
                     polygon = '"%s POLY"' % (name[1:-1])
                     polygons[polygon]=Polygon(name=polygon, vertices=p)
@@ -80,11 +80,11 @@ def adjacentSpaces(space=None, tol=1, vTol=1):
             space2Polygon = spaces[space2].polygon
             space2PolygonVertices = polygons[space2Polygon].numericalVertices()
             space2Poly = Poly(space2PolygonVertices)
-    
+
             maxLow = max(spaceZLow, space2ZLow)
             minHigh = min(spaceZHigh, space2ZHigh)
             d = spacePoly.distance(space2Poly)
-            
+
             if ((minHigh - maxLow) > vTol) and (d < tol):
                 adjacentSpaces.append(space2)
 
@@ -104,7 +104,7 @@ def splitInteriorWalls():
         shLines = shapelyPolygonToShapelyLines(shPolygon)
         v = 0
         for otherSpace in activeSpaces:
-            ol = spaceVerticalOverlap(space, otherSpace)        
+            ol = spaceVerticalOverlap(space, otherSpace)
             if ol > minimumVerticalOverlap:
                 polygon2 = spaces[otherSpace].polygon
                 v = 0
@@ -119,7 +119,7 @@ def splitInteriorWalls():
                         d1 = p1.distance(v2p)
                         d2 = p2.distance(v2p)
                         dPoints = min(d1, d2)
-                        
+
                         if dLine < pointLineDistance and dPoints > pointLineDistance:
                             #newPoints.append([v, d1, polygon, v2, polygon2, u1, l1, u2, l2])
                             newPoints.append([v, d1, polygon, v2, polygon2])
@@ -136,7 +136,7 @@ def splitInteriorWalls():
         newPoints.sort(key=lambda x:x[0] )
         newPoints.reverse()
         newPoints.sort(key=lambda x:x[2] )
-        
+
 
         for newPoint in newPoints:
             #print newPoint[0], newPoint[1], newPoint[2], newPoint[3]
@@ -148,28 +148,28 @@ def splitInteriorWalls():
 
 
 
-                                         
+
 def combineCloseVerticies3(tol=1.25, vTol = 1):
     c = 0
-    
+
     spaceGroups = []
     #spacesUsed = []
 
     spaceList = sorted(spaces.keys())
     print spaceList
-    
+
     # go through all spaces as base space
     debug('Start combine clost vertices 3')
     spacesUsed =[]
-    
+
     # loop to determine groups of space which share walls
     for space1 in spaceList:
         thisGroup = []
         workingList = []
         if space1 in spacesUsed:
-            debug('Base space already used: %s' % space1, p=0) 
+            debug('Base space already used: %s' % space1, p=0)
         else:
-            debug('Base space being investigated: %s' % space1, p=0) 
+            debug('Base space being investigated: %s' % space1, p=0)
             #spacesUsed.append(space1)
             workingList.append(space1)
 
@@ -185,11 +185,11 @@ def combineCloseVerticies3(tol=1.25, vTol = 1):
                 for adjacent in adjacents:
                     if not (adjacent in thisGroup) and not (adjacent in workingList):
                         workingList.append(adjacent)
-            
+
             spaceGroups.append(thisGroup)
-            
+
         spacesUsed += thisGroup
-    
+
     # print spaces with shared walls
     c = 0
     for spaceGroup in spaceGroups:
@@ -206,15 +206,15 @@ def combineCloseVerticies3(tol=1.25, vTol = 1):
             polygonGroup.append(spaces[space].polygon)
         polygonGroup = list(set(polygonGroup))
         polygonGroups.append(polygonGroup)
-        
-    
+
+
     polygonGroupNumber = 0
     # loop through polygon groups to fix clost vertices
     for polygonGroup in polygonGroups:
         polygonGroupNumber += 1
         debug('\n\n###################################\n')
         comboSets = {}
-        
+
         for polygon in polygonGroup:
             debug('Looking at Polygon %s' % polygon, d=2, p=0)
             vNum = 1
@@ -222,11 +222,11 @@ def combineCloseVerticies3(tol=1.25, vTol = 1):
                 addPoint = '%s:%s' % (polygon, vNum)
                 addSet = []
                 debug('Looking at Verticy %s' % addPoint, d=4, p=0)
-                
+
                 # loop through all comboSets
                 for comboSet in comboSets:
                     debug('Comparing to ComboSet %s' % comboSet, d=6)
-                    # loop through all  points in this combo set to see if we can add this point          
+                    # loop through all  points in this combo set to see if we can add this point
                     for comboPoint in comboSets[comboSet]:
                         debug('Comparing to ComboPoint %s' % comboPoint, d=8)
                         vd = pointDistance(verticy, comboSets[comboSet][comboPoint])
@@ -237,16 +237,16 @@ def combineCloseVerticies3(tol=1.25, vTol = 1):
                             debug('Found Matching ComboSet "%s" for %s' % (comboSet, addPoint), d=10)
                             break
 
-    
+
                 # if this piont can't be added, make a new set
                 if len(addSet) > 1:
                     debug('Multiple ComboSets found for %s' % (addPoint), d=6, p=0)
-                    
+
                 elif len(addSet) == 1:
                      theAddSet = addSet[0]
                      comboSets[theAddSet][addPoint] = verticy
                      debug('Adding point %s to new  set "%s"\n   %s' % (addPoint, theAddSet, verticy), d=6, p=0)
-                
+
                 else:
                     c += 1
                     newSetName = 'set %s' % c
@@ -255,9 +255,9 @@ def combineCloseVerticies3(tol=1.25, vTol = 1):
                     comboSets[newSetName] = {}
                     debug('  adding point %s to new cobmo set\n   %s' % (addPoint, verticy), d=6, p=0)
                     comboSets[newSetName][addPoint] = verticy
-    
+
                 vNum +=1
-         
+
         debug('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         debug('Changing vertices for polygon group %s' % polygonGroupNumber)
         for comboSet in comboSets:
@@ -275,18 +275,18 @@ def combineCloseVerticies3(tol=1.25, vTol = 1):
             yAvg = yTotal/len(comboSets[comboSet])
 
             debug('-- Set average: %s, %s ' % (xAvg, yAvg) , d=4, p=0)
-    
+
             debug('Changing vertices for polygon group %s' % polygonGroupNumber)
-            
+
             for verticy in comboSets[comboSet]:
                 debug('Changing vertices for polygon group %s, verticy %s' % (polygonGroupNumber, verticy))
                 polygon = verticy.split(':')[0]
                 vNum = int(verticy.split(':')[1])
                 polygons[polygon].vertices[vNum-1][0] = xAvg
                 polygons[polygon].vertices[vNum-1][1] = yAvg
-    
+
     for polygon in polygons:
-        polygons[polygon].deleteSeqDupes()        
+        polygons[polygon].deleteSeqDupes()
 
 
 
@@ -299,7 +299,7 @@ def createZones():
         zoneName = '"%s ZONE"' % space[1:-1]
         #print '----------------'
         #print 'Adding zone %s' % (zoneName)
-        #print '----------------'                        
+        #print '----------------'
         zones[zoneName]=Zone(zoneName, '', '"Dummy System"')
         #print 'System: %s' % zones[zoneName].system
         if spaces[space].zoneType == 'PLENUM':
@@ -325,24 +325,24 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
     extWalls = []
     # angleTolerance = 2.5 # controled by formula below
     activeElements = returnActiveElements(spaces)
-    
+
     # determining which space edges have interior walls
-    
+
     # loop through spaces
     for space in activeElements:
         #loop through other spaces
         for otherSpace in spaces:
             #get global upper and lower vertical for spaces
-            
-            
+
+
             u = min((spaces[space].trueZ() + spaces[space].trueHeight()),(spaces[otherSpace].trueZ() + spaces[otherSpace].trueHeight()))
             l = max((spaces[space].trueZ()),(spaces[otherSpace].trueZ()))
-            
+
             # ##### u and l not calculating properly!
-            
+
             #loop only if the spaces overlap vertically
             if (u - l) > minimumVerticalOverlap:
-                
+
                 # nitty gritty details
                 spaceVerticesEquest = polygons[spaces[space].polygon].vertices
                 otherSpaceVerticesEquest = polygons[spaces[otherSpace].polygon].vertices
@@ -350,9 +350,9 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
                 otherSpacePolygonShapely = eQuestToShapelyPoly(otherSpaceVerticesEquest)
                 polygonDistance = spacePolygonShapely.distance(otherSpacePolygonShapely)
 
-                # loop only if spaces are close 
+                # loop only if spaces are close
                 if polygonDistance < maximumHorizontalDistance:
-                
+
                     spaceLSs = shapelyPolygonToShapelyLines(spacePolygonShapely)
                     otherSpaceLSs = shapelyPolygonToShapelyLines(otherSpacePolygonShapely)
                     l1 = 0
@@ -419,7 +419,7 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
 
         sys.exit()
     else:
-        
+
         #### NEED TO CREATE ALL INTERIOR WALLS TO SEE WHERE REMAINING EXTERIOR WALLS WILL FALL
         ## create exterior walls where interior walls do not exist
         #for space in activeElements:
@@ -435,12 +435,12 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
         #        if not found and ([space, v] not in sameSpaceWalls):
         #            extWalls.append([space,v])
         #            print '   no interior wall on %s'  % v
-        
-        tol = 1                        
-     
+
+        tol = 1
+
         #makeInteriorWalls = raw_input('   make interior walls? [y]/n')   # use this later to delete
         newIWalls = []
-        
+
         IWallNum = 0
         for intWall in intWalls:
             space = intWall[0]
@@ -461,11 +461,11 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
                 attributes = [['CONSTRUCTION', '"AIR WALL CONSTRUCTION"']]
             else:
                 attributes = [['CONSTRUCTION', '"INTERIOR WALL CONSTRUCTION"']]
-            
+
             #debug('IW\n  iwall %s\n  space %s\n  spaceZ %s\n  spaceH %s\n  wallZ %s\n  wallRel %s\n  wallH %s\n\n' % (iWall, space, spaceZ, spaceH, wallZ, wallZRel, wallH))
-            
+
             iWalls[iWall]=IWall(name=iWall,attributes=attributes, floor=spaces[space].floor, space=spaces[space].name)
-            
+
             iWalls[iWall].location = location
             iWalls[iWall].nextTo = nextTo
 
@@ -475,10 +475,10 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
             if not (abs(wallH-spaceH) < tol):
                 iWalls[iWall].height = wallH
 
-           
+
         newEWalls = []
         for space in activeElements:
-            
+
             c = spaces[space].countVertices()
             for v in range(1,c+1):
                 debug('\n-----------------\n%s' % space)
@@ -489,8 +489,8 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
                     if ( (iWalls[iWall].space == space and str(v) == v1) or ((iWalls[iWall].nextTo == space) and str(v) == v2)):
                         #debug('   %s %s %s %s %s\n' % (iWall, iWalls[iWall].nextTo, v, v1, v2))
                         allIWalls.append(iWall)
-                    
-                
+
+
 
                 #debug('   v %s\n  allIWalls %s\n' % (v, allIWalls))
                 if not len(allIWalls):
@@ -501,7 +501,7 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
                     allIWallsHeight = 0
                     for allIWall in allIWalls:
                         allIWallsHeight += iWalls[allIWall].returnHeight()
-                    
+
                     if abs(allIWallsHeight - spaces[space].trueHeight()) < tol:
                         debug('%s-%s exhausted by %s \n' % (space, v, allIWalls))
                     else:
@@ -514,11 +514,11 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
                             iWallZ = iWalls[allIWall].returnTotalZ()
                             iWallSpan = [iWallZ - spaceZ, iWallZ + iWallH - spaceZ]
                             iWallSpans.append(iWallSpan)
-                            
+
                             debug('  allIWall %s\n  iWallH %s\n  iWallZ %s\n  spaceZ %s' % (allIWall, iWallH, iWallZ, spaceZ))
                             debug('  iWallSpan %s' % (iWallSpan))
 
-                        
+
                         iWallSpans.sort()
                         debug('iWallSpans %s' % (iWallSpans))
                         spaceHeight = spaces[space].trueHeight()
@@ -534,9 +534,9 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
                             if (eWallSpan[1] - eWallSpan[0]) > tol:
                                 newEWalls.append([space,v,eWallSpan[0], eWallSpan[1] - eWallSpan[0]])
                                 debug('  new ewall %s' % eWallSpan)
-        
-        
-        
+
+
+
         if ugThreshold == '':
             i4 = raw_input('   underground threshohold [0]')
         try:
@@ -549,10 +549,10 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
             location = 'SPACE-V%s' % newEWall[1]
             eWall = '"%s-E%s"' % (space[1:-1], newEWall[1])
             uWall = '"%s-U%s"' % (space[1:-1], newEWall[1])
-            
 
-            
-            
+
+
+
             if not newEWall[2]:
                 z = spaces[space].trueZ()
             else:
@@ -567,28 +567,28 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
 
             # if the ewall Z is above the underground threshold, make an exterior wall
             tol = 1
-            
+
             if z >= ugThreshold:
                 debug('created %s' % eWall)
                 attributes = [['CONSTRUCTION', '"EXTERIOR WALL CONSTRUCTION"']]
                 eWalls[eWall]=EWall(name=eWall, attributes=attributes, floor=spaces[space].floor, space=spaces[space].name)
                 eWalls[eWall].location = location
-                
+
                 if newEWall[2]:
-                    eWalls[eWall].z = newEWall[2] 
+                    eWalls[eWall].z = newEWall[2]
                 if newEWall[2]:
-                    eWalls[eWall].height = newEWall[3] 
+                    eWalls[eWall].height = newEWall[3]
 
 
             # if the ewall Z + height is below the underground threshold, make an underground wall
             elif (z+h) <= ugThreshold:
                 uWalls[uWall]=UWall(name=uWall, floor=spaces[space].floor, space=spaces[space].name)
                 uWalls[uWall].location = location
-                
+
                 if newEWall[2]:
-                    uWalls[uWall].z = newEWall[2] 
+                    uWalls[uWall].z = newEWall[2]
                 if newEWall[2]:
-                    uWalls[uWall].height = newEWall[3] 
+                    uWalls[uWall].height = newEWall[3]
 
             # otherwise, split the wall into an ewall and a uwall
             else:
@@ -598,11 +598,11 @@ def createInteriorAndExteriorWalls(ugThreshold=''):
 
                 attributes = [['CONSTRUCTION', '"EXTERIOR WALL CONSTRUCTION"']]
                 eWalls[eWall]=EWall(name=eWall,  attributes=attributes, floor=spaces[space].floor, space=spaces[space].name)
-                debug('created %s' % eWall) 
+                debug('created %s' % eWall)
                 eWalls[eWall].height = eWallHeight
                 eWalls[eWall].z = eWallZ
                 eWalls[eWall].location = location
-                
+
                 attributes = [['CONSTRUCTION', '"UNDERGROUND WALL CONSTRUCTION"']]
                 uWalls[uWall]=UWall(name=uWall, floor=spaces[space].floor, space=spaces[space].name)
                 uWalls[uWall].height = uWallHeight
@@ -624,14 +624,14 @@ def advancedCreateFloors():
     for space in activeElements:
         runningVerts = polygons[spaces[space].polygon].numericalVertices()
         runningPoly = Poly(runningVerts)
-        debug('') 
+        debug('')
         debug(space)
 
         for otherSpace in spaces:
             if abs((spaces[space].trueZ()) - ((spaces[otherSpace].trueHeight()) + spaces[otherSpace].trueZ())) < floorMatchTolerance:
                 otherSpaceVerts = polygons[spaces[otherSpace].polygon].numericalVertices()
                 otherSpacePoly = Poly(otherSpaceVerts)
-                
+
                 try:
                     intersection = runningPoly.intersection(otherSpacePoly)
                     if intersection.area > smallestAreaIntersection:
@@ -651,7 +651,7 @@ def advancedCreateFloors():
         else:
             debug(  '\n   No polygon remaining from differences')
             debug(  '   %s' % runningPoly)
-        
+
         floorNum = 0
         for poly in polyList:
             debug(    '\n    area:    %s' % poly.area)
@@ -678,19 +678,19 @@ def advancedCreateFloors():
                 debug(  '        skipped   ')
 
             if makeFloor:
-                    
+
                 if spaces[space].trueZ() <= 3:
                     floorType = 'u'
                 else:
                     floorType = 'e'
-                    
+
                 spaceArea = polygons[spaces[space].polygon].area()
                 floorPolyNum = eQuestToShapelyPoly(p)
                 floorArea = floorPolyNum.area
 
                 floorNum += 1
                 name = '"%s-FLOOR%s"' % (spaces[space].name[1:-1], floorNum)
-                
+
                 if floorType == 'e':
                     attributes = [['CONSTRUCTION','"EXTERIOR FLOOR CONSTRUCTION"']]
                     eWalls[name]=EWall(name=name, attributes=attributes, floor=spaces[space].floor, space=spaces[space].name)
@@ -725,12 +725,12 @@ def advancedCreateRoofs():
     useSpacePolygonThreshold = .98
     smallestAreaIntersection = 1
     #otherSpaces = spaces[:]
-    
+
     dl = 'debug.log'
-    
+
     #roofs
     #makeRoofs(spaces, floors)
-    
+
     activeElements = returnActiveElements(spaces)
     for space in activeElements:
         runningVerts = polygons[spaces[space].polygon].numericalVertices()
@@ -739,14 +739,14 @@ def advancedCreateRoofs():
             if abs((spaces[space].trueZ() + spaces[space].trueHeight()) - spaces[otherSpace].trueZ()) < floorMatchTolerance:
                 otherSpaceVerts = polygons[spaces[otherSpace].polygon].numericalVertices()
                 otherSpacePoly = Poly(otherSpaceVerts)
-                
+
                 try:
                     runningPoly = runningPoly.difference(otherSpacePoly)
                 except:
                     debug('ERROR: could not properly compare %s to %s' % (space, otherSpace))
 
         polyList = []
-        debug('') 
+        debug('')
         debug(space)
         if type(runningPoly) == MultiPolygon:
             for poly in runningPoly.geoms:
@@ -758,7 +758,7 @@ def advancedCreateRoofs():
         else:
             debug(  '\n   No polygon remaining from differences')
             debug(  '   %s' % runningPoly)
-        
+
         roofNum = 0
         for poly in polyList:
             debug(    '\n    area:    %s' % poly.area)
@@ -789,7 +789,7 @@ def advancedCreateRoofs():
                     roofType = 'e'
                 else:
                     roofType = 'u'
-                    
+
                 spaceArea = polygons[spaces[space].polygon].area()
                 roofPolyNum = eQuestToShapelyPoly(p)
                 roofArea = roofPolyNum.area

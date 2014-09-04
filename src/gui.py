@@ -17,10 +17,10 @@ BLACK.setColor(QtGui.QColor(0,0,0))
 
 
 class Batch(QtGui.QWidget):
-    
+
     def __init__(self):
         super(Batch, self).__init__()
-        
+
         self.initUI()
 
     def initUI(self):
@@ -44,10 +44,10 @@ class Batch(QtGui.QWidget):
             existing += value
 
         self.kind_map['Other'] = [k for k in kind_list if not k in existing]
-        
+
         self.selected = []
-        
-        self.setLayout(grid) 
+
+        self.setLayout(grid)
         tabWidget = QtGui.QTabWidget()
         spaceTab = QtGui.QWidget()
         tabWidget.addTab(Main_Tab(self.b, self), 'Main')
@@ -70,7 +70,7 @@ class Main_Tab(QtGui.QWidget):
         self.b = b
 
         QtGui.QWidget.__init__(self)
-        
+
         grid = QtGui.QGridLayout()
         grid.setSpacing(10)
 
@@ -82,7 +82,7 @@ class Filter_Tab(QtGui.QWidget):
         self.kind = kind
 
         QtGui.QWidget.__init__(self)
-        
+
         self.grid = QtGui.QGridLayout()
         self.grid.setSpacing(10)
 
@@ -92,13 +92,13 @@ class Filter_Tab(QtGui.QWidget):
         self.list = QtGui.QListWidget(self)
         self.list.itemClicked.connect(self.set_selection)
         self.list.setMaximumWidth(200)
-        
+
         self.set_checkboxes()
         self.set_advanced_filters()
 
         self.filter()
-        self.setLayout(self.grid) 
-        
+        self.setLayout(self.grid)
+
         self.grid.addWidget(self.search, 2, 1)
 
     def set_advanced_filters(self):
@@ -118,7 +118,7 @@ class Filter_Tab(QtGui.QWidget):
     def set_checkboxes(self):
         self.checkboxes = {}
         if len(self.parent.kind_map[self.kind]) > 1 and not self.kind=='Other':
-            
+
             hbox = QtGui.QHBoxLayout()
             for kind in self.parent.kind_map[self.kind]:
                 self.checkboxes[kind] = QtGui.QCheckBox(kind)
@@ -128,28 +128,28 @@ class Filter_Tab(QtGui.QWidget):
             self.grid.addLayout(hbox, 1, 1)
 
     def toggle_moreless(self):
-    
+
         if self.adv.isVisible():
             self.adv.setVisible(False)
             self.moreless.setText('More Filters')
         else:
             self.adv.setVisible(True)
             self.moreless.setText('Less Filters')
-            
-    
+
+
     def set_selection(self, item):
         self.b.toggle(item.text())
         if item.text() in self.b.selected:
             item.setForeground(BLUE)
         else:
             item.setForeground(BLACK)
-            
+
 
     def filter(self):
         self.list.clear()
 
         unchecked = [name for name, checkbox in self.checkboxes.items() if not checkbox.isChecked()]
-       
+
         for name, object in self.b.objects.items():
             if object.kind in self.parent.kind_map[self.kind]:
                 if not object.kind in unchecked:
@@ -159,13 +159,13 @@ class Filter_Tab(QtGui.QWidget):
                         item.setForeground(BLUE)
                     elif self.search.text() in str(name):
                         item = QtGui.QListWidgetItem(name)
-                        self.list.addItem(item)        
+                        self.list.addItem(item)
 
 
 class Floor_Tab(Filter_Tab):
 
     def __init__(self, b, parent):
-        
+
         self.b = b
 
         grid = QtGui.QGridLayout()
@@ -177,11 +177,11 @@ class Floor_Tab(Filter_Tab):
 
         Filter_Tab.__init__(self, b, parent, 'Floor')
 
-        
+
 class Space_Tab(Filter_Tab):
 
     def __init__(self, b, parent):
-        
+
         self.b = b
         self.adv = None
         Filter_Tab.__init__(self, b, parent, 'Space')
@@ -189,7 +189,7 @@ class Space_Tab(Filter_Tab):
 class Wall_Tab(Filter_Tab):
 
     def __init__(self, b, parent):
-        
+
         self.b = b
         self.adv = None
         Filter_Tab.__init__(self, b, parent, 'Wall')
@@ -197,7 +197,7 @@ class Wall_Tab(Filter_Tab):
 class Window_Tab(Filter_Tab):
 
     def __init__(self, b, parent):
-        
+
         self.b = b
         self.adv = None
         Filter_Tab.__init__(self, b, parent, 'Window')
@@ -205,7 +205,7 @@ class Window_Tab(Filter_Tab):
 class Polygon_Tab(Filter_Tab):
 
     def __init__(self, b, parent):
-        
+
         self.b = b
         self.adv = None
         Filter_Tab.__init__(self, b, parent, 'Polygon')
@@ -213,14 +213,14 @@ class Polygon_Tab(Filter_Tab):
 class Other_Tab(Filter_Tab):
 
     def __init__(self, b, parent):
-        
+
         self.b = b
         self.adv = None
         Filter_Tab.__init__(self, b, parent, 'Other')
-    
+
 
 def main():
-    
+
     app = QtGui.QApplication(sys.argv)
     ex = Batch()
     sys.exit(app.exec_())

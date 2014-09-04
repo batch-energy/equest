@@ -11,7 +11,7 @@ def get_client_construction():
     client = get_client()
     construction = {}
 
-    if client == 'DMI':    
+    if client == 'DMI':
 
         construction['airwall'] = '"AIR WALL CONSTRUCTION"'
         construction['interior'] = '"INTERIOR WALL CONSTRUCTION"'
@@ -25,8 +25,8 @@ def get_client_construction():
 
         construction['underground_slab'] = '"SUBGRADE SLAB CONSTRUCTION"'
         construction['overhang'] = '"EXTERIOR FLOOR CONSTRUCTION"'
-    
-    if client == 'TNZ':    
+
+    if client == 'TNZ':
 
         construction['airwall'] = '"AIR WALL"'
         construction['interior'] = '"INT WALL CONST"'
@@ -39,5 +39,5 @@ def get_client_construction():
         construction['underground_slab'] = '"SUB WALL CONST"'
         construction['overhang'] = '"EXT FLOOR CONST"'
         construction['roof'] = '"ROOF CONST"'
-    
+
     return construction
