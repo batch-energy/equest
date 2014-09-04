@@ -799,6 +799,7 @@ $ *********************************************************
 SET-DEFAULT FOR FLOOR           
    WIDTH            = 1
    DEPTH            = 1
+   SHAPE            = NO-SHAPE
    ..
 SET-DEFAULT FOR SPACE           
    FLOOR-WEIGHT     = 70
@@ -828,8 +829,6 @@ SET-DEFAULT FOR UNDERGROUND-WALL
    CONSTRUCTION     = "SUB WALL CONST"
    ..
 
-"Dummy Floor" = FLOOR
-   ..
 
 
 $ *********************************************************
@@ -970,12 +969,6 @@ $ **                                                     **
 $ **               HVAC Systems / Zones                  **
 $ **                                                     **
 $ *********************************************************
-
-"Dummy System" = SYSTEM          
-   TYPE             = VAVS
-   HEAT-SOURCE      = NONE
-   CHW-LOOP         = "DEFAULT-CHW"
-   ..
 
 
 $ *********************************************************

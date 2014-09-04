@@ -462,8 +462,6 @@ $ ---------------------------------------------------------
 $              Polygons
 $ ---------------------------------------------------------
 
-"Dummy Poly" = POLYGON
-   ..
 
 $ ---------------------------------------------------------
 $              Wall Parameters
@@ -493,6 +491,7 @@ $ *********************************************************
 SET-DEFAULT FOR FLOOR           
    WIDTH            = 1
    DEPTH            = 1
+   SHAPE            = NO-SHAPE
    ..
 
 SET-DEFAULT FOR SPACE           
@@ -518,12 +517,6 @@ SET-DEFAULT FOR WINDOW
    C-WELL-WIDTH     = 0
    ..
 
-"Dummy Floor" = FLOOR
-   Z                = 0.0
-   SHAPE            = NO-SHAPE
-   FLOOR-HEIGHT     = 16.5
-   SPACE-HEIGHT     = 12.5
-   ..
 
 $ *********************************************************
 $ **                                                     **
@@ -845,11 +838,6 @@ SET-DEFAULT FOR ZONE
    HW-LOOP          = "HW Loop"
    ..
 
-"Dummy System" = SYSTEM          
-   TYPE             = VAVS
-   HEAT-SOURCE      = NONE
-   CHW-LOOP         = "DEFAULT-CHW"
-   ..
 
 
 $ *********************************************************
