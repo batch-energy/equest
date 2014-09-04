@@ -351,7 +351,7 @@ class Pdf_Polygon(object):
 
         vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
         vl = [float(n) for n in vertices_string.split()]
-        self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
+        self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)][:-1]
         
         name = get_fdf_attribute('T', line)
         name_clean = re.sub(r'[\[\]\;\(\)]', ' ', name)
@@ -368,6 +368,9 @@ def main():
     project_name = os.getcwd().split(os.sep)[-1]
     seed_file = utils.client_seed_file(client)
     fdf_file = [f for f in os.listdir('.') if f[-4:] == '.fdf'][0]
+
+    with open(project_name + '.pd2', 'wb') as f:
+        f.write(utils.project_pd2_text(project_name))
 
     seed_building = eo.Building()
     seed_building.load(seed_file)

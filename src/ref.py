@@ -76,10 +76,10 @@ kind_list = [
       'LUMINAIRE-TYPE',
       'TROMBE-WALL-NV',
 
+      'CIRCULATION-LOOP',
       'PUMP',
       'BOILER',
       'CHILLER',
-      'CIRCULATION-LOOP',
       'DW-HEATER',
       'ELEC-GENERATOR',
       'GROUND-LOOP-HX',
