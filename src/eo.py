@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import re, time, os, ref, e_math, math, utils
 from shapely.geometry import Polygon as Poly
 from shapely.geometry import Point as Pt
@@ -36,35 +36,6 @@ class Building(object):
         text = self.clean_file(text)
         self.objectify(self.split_objects(text))
 
-    def extend(self, other):
-        '''Extends this building with the objects in another'''
-
-        messages = []
-        for name, object in other.objects.items():
-            if not object in self.objects:
-                self.objects[name] = object
-            else:
-                if self.objects[name].kind != object.kind:
-                    messages.append['Conflict in extend: Kind mismatch for ' + name]
-                    continue
-                for k, v in object.attr.items():
-                    if not k in self.objects[name].attr:
-                        self.objects.attr[k] = v
-                    elif self.objects[name].attr[k] != v:
-                        messages.append['Conflict in extend: %s/%s Exists' & (name, k)]
-
-        for name, kind in other.defaults.items():
-            if not name in self.defaults:
-                self.defaults[name] = {}
-            for default_type, default in kind.items():
-                if not default_type in self.defaults[name]:
-                    self.defaults[name][default_type] = default
-                else:
-                    for k, v in self.defaults[name][default_type].attr:
-                        if not k in self.defaults[name][default_type].attr:
-                            self.defaults[name][default_type].attr[k] = v
-                        elif self.defaults[name][default_type].attr[k] != v:
-                            messages.append['Conflict in extend: default[%s][%s] Exists' & (name, default_type)]
 
     def kinds(self, kind):
         '''OrderedDict of objects only of kind'''
@@ -201,6 +172,19 @@ class Building(object):
 
     def selected_by_kind(self, kind):
         return [name for name, object in self.kinds(kind).items() if object.selected]
+
+    def get_object_attr(self, object_name):
+        if object_name in self.objects:
+            return self.objects[object_name].attr
+        else:
+            return {}
+
+    def get_default_attr(default_name, default_type=None):
+
+        if default_name in self.defaults:
+            if default_type in self.defaults[default_name]:
+                return self.defaults[default_name][default_type].attr
+        return {}
 
 class Default(object):
 
@@ -490,6 +474,7 @@ class Space(Object):
     def system(self):
         return self.zone().system()
 
+
 class Wall(Object):
 
     def __init__ (self, b, name, kind, parent):
@@ -607,11 +592,13 @@ class E_Wall(Wall):
             item.delete()
         del self
 
+
 class U_Wall(Wall):
 
     def __init__ (self, b, name=None, kind='UNDERGROUND-WALL', parent=None):
 
         Wall.__init__(self, b, name, kind, parent)
+
 
 class I_Wall(Wall):
 
@@ -673,7 +660,6 @@ class Door(Wall_Object):
         Wall_Object.__init__(self, b, name, kind, parent)
 
 
-
 class System(Object):
 
     def __init__ (self, b, name=None, kind='SYSTEM', parent=None):
@@ -692,3 +678,92 @@ class Zone(Object):
 
     def system(self):
         return self.parent
+
+class Comparison():
+
+    LEFT = 'left'
+    RIGHT = 'right'
+
+    def __init__(self, b1, b2):
+
+        self.b1 = b1
+        self.b2 = b2
+        self.object_keys = list(set(b1.objects.keys() + b2.objects.keys()))
+        self.object_keys_common = list(set(b1.objects.keys()) & set(b2.objects.keys()))
+
+        self.default_keys = {}
+        self.default_keys_common = {}
+        for key in set(b1.defaults.keys() + b2.defaults.keys()):
+            self.default_keys[key] = []
+            for default_type in self.b1.defaults.get(key,{}).keys():
+                self.default_keys[key].append(default_type)
+            for default_type in self.b2.defaults.get(key,{}).keys():
+                self.default_keys[key].append(default_type)
+            self.default_keys[key] = list(set(self.default_keys[key]))
+
+        self.messages = []
+
+    def conflicts(self):
+
+        conflicts =[]
+
+        for object_key in self.object_keys_common:
+            b1_attrs = self.b1.get_object_attr(object_key)
+            b2_attrs = self.b2.get_object_attr(object_key)
+            for attr_key in list(set(b1_attrs.keys()) & set(b2_attrs.keys())):
+                if b1_attrs[attr_key] != b2_attrs[attr_key]:
+                    conflicts.append(object_key)
+
+        return conflicts
+
+    def combine(self):
+
+        new = Building()
+        if self.conflicts():
+            return None
+
+        for name, object in other.objects.items():
+            if not object in self.objects:
+                self.objects[name] = object
+            else:
+                if self.objects[name].kind != object.kind:
+                    messages.append['Conflict in extend: Kind mismatch for ' + name]
+                    continue
+                for k, v in object.attr.items():
+                    if not k in self.objects[name].attr:
+                        self.objects.attr[k] = v
+                    elif self.objects[name].attr[k] != v:
+                        messages.append['Conflict in extend: %s/%s Exists' & (name, k)]
+
+        for name, kind in other.defaults.items():
+            if not name in self.defaults:
+                self.defaults[name] = {}
+            for default_type, default in kind.items():
+                if not default_type in self.defaults[name]:
+                    self.defaults[name][default_type] = default
+                else:
+                    for k, v in self.defaults[name][default_type].attr:
+                        if not k in self.defaults[name][default_type].attr:
+                            self.defaults[name][default_type].attr[k] = v
+                        elif self.defaults[name][default_type].attr[k] != v:
+                            messages.append['Conflict in extend: default[%s][%s] Exists' & (name, default_type)]
+
+
+if __name__ == '__main__':
+
+    b1 = Building()
+    b1.load(os.path.join('compare', 'b1.inp'))
+
+    b2 = Building()
+    b2.load(os.path.join('compare', 'b2.inp'))
+
+    #compare = Comparison(b1, b2)
+    #print compare.conflicts()
+    d = {}
+    Default = namedtuple('Default', 'kind type')
+    d[Default('Space', None)] = 'test'
+    d[Default('Floor', None)] = 'test2'
+    for k, v in d.items():
+        print k, v
+
+    
