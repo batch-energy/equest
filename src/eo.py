@@ -6,6 +6,7 @@ from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
 import copy
 from pprint import pprint as pp
 
+
 class Filter(object):
     def __init__(self):
         attr = {}
@@ -60,9 +61,8 @@ class Building(object):
 
         t = ''
         for kind in ref.kind_list:
-
-            if kind in self.defaults:
-                for default in self.defaults[kind].values():
+            for default in self.defaults.values():
+                if default.kind == kind:
                     t += default.write()
 
             if not kind in ref.parents.keys():
@@ -103,18 +103,17 @@ class Building(object):
             lines = object_text.split('\n')
 
             if 'SET-DEFAULT' in lines[0]:
-                default_types = [line.split('=')[1].strip()
+                kind = lines[0].split()[-1]
+                types= [line.split('=')[1].strip()
                     for line in lines
                     if len(line.split('='))>1
                     and line.split('=')[0].strip()=='TYPE']
 
-                default_type = default_types[0] if default_types else None
-                kind = lines[0].split()[-1]
-                d = Default(self, kind, default_type)
+                d = Default(self, kind, types[0] if types else None)
                 d.read(lines)
                 continue
 
-            elif '=' in lines[0]:
+            if '=' in lines[0]:
                 name, kind = [s.strip() for s in lines[0].split('=')]
             else:
                 name, kind = lines[0], lines[0]
@@ -179,23 +178,28 @@ class Building(object):
         else:
             return {}
 
-    def get_default_attr(default_name, default_type=None):
-
-        if default_name in self.defaults:
-            if default_type in self.defaults[default_name]:
-                return self.defaults[default_name][default_type].attr
-        return {}
+    def get_default_attr(self, key):
+        if key in self.defaults:
+            return self.defaults[key].attr
+        else:
+            return {}
 
 class Default(object):
 
-    def __init__(self, b, kind, default_type=None):
+    def __init__(self, b, kind, type=None):
         self.b = b
-        self.kind = kind
-        if not kind in b.defaults:
-            b.defaults[kind] = {}
-        b.defaults[kind][default_type] = self
+        self.key = ((kind, type))
+        b.defaults[self.key] = self
         self.attr = OrderedDict()
 
+    @property
+    def kind(self):
+        return self.key[0]
+
+    @property
+    def type(self):
+        return self.key[1]
+        
     def read(self, lines):
 
         for line in lines[1:]:
@@ -691,15 +695,8 @@ class Comparison():
         self.object_keys = list(set(b1.objects.keys() + b2.objects.keys()))
         self.object_keys_common = list(set(b1.objects.keys()) & set(b2.objects.keys()))
 
-        self.default_keys = {}
-        self.default_keys_common = {}
-        for key in set(b1.defaults.keys() + b2.defaults.keys()):
-            self.default_keys[key] = []
-            for default_type in self.b1.defaults.get(key,{}).keys():
-                self.default_keys[key].append(default_type)
-            for default_type in self.b2.defaults.get(key,{}).keys():
-                self.default_keys[key].append(default_type)
-            self.default_keys[key] = list(set(self.default_keys[key]))
+        self.default_keys = list(set(b1.defaults.keys() + b2.defaults.keys()))
+        self.default_keys_common = list(set(b1.defaults.keys()) & set(b2.defaults.keys()))
 
         self.messages = []
 
@@ -712,42 +709,43 @@ class Comparison():
             b2_attrs = self.b2.get_object_attr(object_key)
             for attr_key in list(set(b1_attrs.keys()) & set(b2_attrs.keys())):
                 if b1_attrs[attr_key] != b2_attrs[attr_key]:
-                    conflicts.append(object_key)
+                    conflicts.append((object_key, attr_key))
+
+        for default_key in self.default_keys_common:
+            b1_attrs = self.b1.get_default_attr(default_key)
+            b2_attrs = self.b2.get_default_attr(default_key)
+            for attr_key in list(set(b1_attrs.keys()) & set(b2_attrs.keys())):
+                if b1_attrs[attr_key] != b2_attrs[attr_key]:
+                    conflicts.append((default_key, attr_key))
 
         return conflicts
 
-    def combine(self):
+    def combine(self, resolve=None):
 
-        new = Building()
-        if self.conflicts():
+        messages = []
+        if self.conflicts() and not resolve:
             return None
 
-        for name, object in other.objects.items():
-            if not object in self.objects:
-                self.objects[name] = object
+        if resolve == Comparison.RIGHT:
+            base = copy.deepcopy(self.b1)
+            overwrite = self.b2
+        else:
+            base = copy.deepcopy(self.b2)
+            overwrite = self.b1
+
+        for name, object in overwrite.objects.items():
+            if not name in base.objects:
+                base.objects[name] = object
             else:
-                if self.objects[name].kind != object.kind:
-                    messages.append['Conflict in extend: Kind mismatch for ' + name]
-                    continue
-                for k, v in object.attr.items():
-                    if not k in self.objects[name].attr:
-                        self.objects.attr[k] = v
-                    elif self.objects[name].attr[k] != v:
-                        messages.append['Conflict in extend: %s/%s Exists' & (name, k)]
+                base.objects[name].attr.update(object.attr)
 
-        for name, kind in other.defaults.items():
-            if not name in self.defaults:
-                self.defaults[name] = {}
-            for default_type, default in kind.items():
-                if not default_type in self.defaults[name]:
-                    self.defaults[name][default_type] = default
-                else:
-                    for k, v in self.defaults[name][default_type].attr:
-                        if not k in self.defaults[name][default_type].attr:
-                            self.defaults[name][default_type].attr[k] = v
-                        elif self.defaults[name][default_type].attr[k] != v:
-                            messages.append['Conflict in extend: default[%s][%s] Exists' & (name, default_type)]
+        for key, default in overwrite.defaults.items():
+            if not key in base.defaults:
+                base.defaults[key] = default
+            else:
+                base.defaults[key].attr.update(default.attr)
 
+        return base
 
 if __name__ == '__main__':
 
@@ -757,13 +755,12 @@ if __name__ == '__main__':
     b2 = Building()
     b2.load(os.path.join('compare', 'b2.inp'))
 
-    #compare = Comparison(b1, b2)
-    #print compare.conflicts()
-    d = {}
-    Default = namedtuple('Default', 'kind type')
-    d[Default('Space', None)] = 'test'
-    d[Default('Floor', None)] = 'test2'
-    for k, v in d.items():
-        print k, v
+    compare = Comparison(b1, b2)
+    b1.dump('compare/test1.inp')
+    b2.dump('compare/test2.inp')
+    b3 = compare.combine(resolve=Comparison.LEFT)
+    b3.dump('compare/test3.inp')
+
+
 
     
