@@ -234,7 +234,8 @@ class Object(object):
     def __init__(self, b, name=None, kind=None, parent=None):
         self.b = b
         b.objects[name] = self
-        self.attr = OrderedDict()
+        if kind != 'POLYGON':
+            self.attr = OrderedDict()
         self.kind = kind
         self.name = name
         self.parent=parent
@@ -311,19 +312,35 @@ class Object(object):
         else:
             return True
 
+    def siblings(self):
+        return [o for o in self.b.kinds(self.kind).values()
+            if o.parent==self.parent]
 
 class Polygon(Object):
 
     def __init__ (self, b, name=None, kind='POLYGON'):
         self.b = b
         self.vertices = []
+        self.shapely = None
         Object.__init__(self, b, name, kind)
+
+    @property
+    def attr(self):
+        '''attr not stored for Polygons. Data stored in self.vertices 
+        instead.  Attrs are are created on the fly as needed'''
+
+        attr = OrderedDict()
+        for i, (x, y) in enumerate(self.vertices, start=1):
+            attr['V%s' % i] = '( %s, %s )' % (x, y)
+        return attr
 
     def delete_verticy(self, v):
         self.vertices.pop(v+1)
+        self.shapely = Poly(self.vertices)
 
     def add_verticy(self, point, verticy):
         self.vertices.insert(verticy+1, point)
+        self.shapely = Poly(self.vertices)
 
     def read(self, lines):
         self.vertices = []
@@ -333,28 +350,21 @@ class Polygon(Object):
                 n, v = [s.strip() for s in  line.split('=')]
             else:
                 n, v = line, None
-            self.attr[n] = v
             x, y = v[1:-1].split(',')
             self.vertices.append([float(x),float(y)])
-
-    def write(self):
-        t = self.name + ' = ' + self.kind + '\n'
-
-        for i, (x, y) in enumerate(self.vertices, start=1):
-            t += '   V%s = ( %s, %s )\n' % (i, x, y)
-        t += '   ..\n'
-        return t
-
+        self.shapely = Poly(self.vertices)
+    
     def area(self):
-        p = Poly(self.vertices)
-        return p.area
+        return self.shapely.area
 
     def delete_sequential_dupes(self, tol=0.1):
         new = []
         count = len(self.vertices)
         for i in range(count):
-            if e_math.distance(self.vertices[i], self.vertices[i%count]) > tol:
+            if e_math.distance(self.vertices[i], self.vertices[(i+1)%count]) > tol:
                 new.append(self.vertices[i])
+        self.vertices = new
+        self.shapely = Poly(self.vertices)
 
     def get_vertices(self, v):
         vertices = self.vertices + [self.vertices[0]]
