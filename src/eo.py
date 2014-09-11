@@ -1,24 +1,16 @@
 from collections import OrderedDict, namedtuple
 import re, time, os, ref, e_math, math, utils
 from shapely.geometry import Polygon as Poly
-from shapely.geometry import Point as Pt
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
 import copy
 from pprint import pprint as pp
-
+from decimal import Decimal as Dec
+import decimal
+decimal.getcontext().prec = 4
 
 class Filter(object):
     def __init__(self):
         attr = {}
-
-
-class Point(object):
-    def __init__(self, x, y):
-        self.x = float(x)
-        self.y = float(y)
-
-    def str(self, round=2):
-        pass
 
 
 class Building(object):
@@ -288,26 +280,36 @@ class Object(object):
         return t
 
     def get(self, attr):
+
+        # if defined explicitly
         if attr in self.attr:
             value = self.attr[attr]
             if attr in ref.numeric:
-                return float(value)
+                return Dec(value)
             else:
                 return value
+
+        # if defined in defaults
+        type = self.attr['type'] if 'type' in self.attr else None
+        kind_type = (self.kind, type)
+        if kind_type in self.b.defaults:
+            if attr in self.b.defaults[kind_type].attr:
+                return self.b.defaults[kind_type].attr[attr]
+
+        # if implict default
+        if attr in ref.numeric:
+            return 0
         else:
-            if attr in ref.numeric:
-                return 0
-            else:
-                return None
+            return None
 
     def filter(self, attr, min=None, max=None, l=None, like=None):
         if l and self.attr[attr] in l:
             return True
         elif like and like in self.attr[attr]:
             return True
-        elif min != None and float(self.attr[attr]) < min:
+        elif min != None and Dec(self.attr[attr]) < min:
             return False
-        elif max != None and float(self.attr[attr]) > max:
+        elif max != None and Dec(self.attr[attr]) > max:
             return False
         else:
             return True
@@ -321,7 +323,7 @@ class Polygon(Object):
     def __init__ (self, b, name=None, kind='POLYGON'):
         self.b = b
         self.vertices = []
-        self.shapely = None
+        self.poly = None
         Object.__init__(self, b, name, kind)
 
     @property
@@ -334,13 +336,23 @@ class Polygon(Object):
             attr['V%s' % i] = '( %s, %s )' % (x, y)
         return attr
 
+    def regenerate(self):
+        self.poly = Poly(self.vertices)
+
+        self.lines = []
+        for ps in self.sequential_vertices_list():
+            line = LineString(ps)
+            line.p1, line.p2 = [Point(p) for p in ps]
+            self.lines.append(line)
+        self.points = [Point(p) for p in self.vertices]
+    
     def delete_verticy(self, v):
         self.vertices.pop(v+1)
-        self.shapely = Poly(self.vertices)
+        self.regenerate()
 
     def add_verticy(self, point, verticy):
         self.vertices.insert(verticy+1, point)
-        self.shapely = Poly(self.vertices)
+        self.regenerate()
 
     def read(self, lines):
         self.vertices = []
@@ -351,11 +363,11 @@ class Polygon(Object):
             else:
                 n, v = line, None
             x, y = v[1:-1].split(',')
-            self.vertices.append([float(x),float(y)])
-        self.shapely = Poly(self.vertices)
+            self.vertices.append([Dec(x),Dec(y)])
+        self.regenerate()
     
     def area(self):
-        return self.shapely.area
+        return self.poly.area
 
     def delete_sequential_dupes(self, tol=0.1):
         new = []
@@ -364,12 +376,19 @@ class Polygon(Object):
             if e_math.distance(self.vertices[i], self.vertices[(i+1)%count]) > tol:
                 new.append(self.vertices[i])
         self.vertices = new
-        self.shapely = Poly(self.vertices)
+        self.regenerate()
+
 
     def get_vertices(self, v):
         vertices = self.vertices + [self.vertices[0]]
         return vertices[v-1:v+1]
 
+    def sequential_vertices_list(self):
+        return [(self.vertices[i], self.vertices[(i+1)%(len(self.vertices))]) 
+            for i in range(len(self.vertices))]
+
+    def is_ccw(self):
+        return self.poly.is_ccw()
 
 class Floor(Object):
 
@@ -385,6 +404,15 @@ class Floor(Object):
 
     def z(self):
         return self.get('Z')
+
+    def x_global(self):
+        return self.x()
+
+    def y_global(self):
+        return self.x()
+
+    def z_global(self):
+        return self.z()
 
     def plenum_height(self):
         return self.attr.get('FLOOR-HEIGHT') - self.attr.get('SPACE-HEIGHT')
@@ -404,26 +432,32 @@ class Space(Object):
 
         Object.__init__(self, b, name, kind, parent)
 
+    def x(self):
+        return self.get('X')
+
+    def y(self):
+        return self.get('Y')
+
     def z(self):
         if 'Z' in self.attr:
-            return self.attr['Z']
+            return Dec(self.attr['Z'])
         elif self.is_plenum():
             return self.parent.get('SPACE-HEIGHT')
         else:
             return self.get('Z')
 
     def x_global(self):
-        return self.parent.x() + self.get('X')
+        return self.parent.x() + self.x()
 
     def y_global(self):
-        return self.parent.y() + self.get('Y')
+        return self.parent.y() + self.y()
 
     def z_global(self):
         return self.parent.z() + self.z()
 
     def height(self):
         if 'HEIGHT' in self.attr:
-            return self.attr['HEIGHT']
+            return Dec(self.attr['HEIGHT'])
         elif self.is_plenum():
             return self.parent.get('FLOOR-HEIGHT') - self.parent.get('SPACE-HEIGHT')
         else:
@@ -434,6 +468,15 @@ class Space(Object):
 
     def polygon(self):
         return self.b.objects[self.get('POLYGON')]
+
+    def poly(self):
+        return self.polygon().poly
+
+    def lines(self):
+        return self.polygon().lines
+
+    def points(self):
+        return self.polygon().points
 
     def count_vertices(self):
         return len(self.vertices())
@@ -470,15 +513,17 @@ class Space(Object):
             wall.delete()
         del self
 
-    def overlap(self, other):
+    def vertical_overlap(self, other):
         l1 = self.z_global()
         u1 = l1 + self.height()
         l2 = other.z_global()
         u2 = l2 + other.height()
         u = min(u1, u2)
         l = max(l1, l2)
-        ol = u - l
-        return ol
+        return max(u - l,0)
+
+    def adjacent(self):
+        pass
 
     def zone(self):
         for zone in self.b.kinds('ZONE').values():
@@ -500,14 +545,28 @@ class Wall(Object):
             if window.parent.name == self.name]
 
     def doors(self, doors):
-        return [window for window in self.b.objects['DOOR']
-            if window.parent.name == self.name]
+        return [door for door in self.b.objects['DOOR']
+            if door.parent.name == self.name]
 
+    def x(self):
+        if 'X' in self.attr:
+            return Dec(self.attr['X'])
+        elif self.get_side_number():
+            return self.get_vertices()[0][0]
+        else:
+            return self.get('X')
+
+    def y(self):
+        if 'Y' in self.attr:
+            return Dec(self.attr['Y'])
+        elif self.get_side_number():
+            return self.get_vertices()[0][0]
+        else:
+            return self.get('Y')
 
     def z(self):
-
         if 'Z' in self.attr:
-            return self.attr['Z']
+            return Dec(self.attr['Z'])
         elif self.get('LOCATION') == 'TOP':
             return self.parent.get('Z')
         else:
@@ -515,6 +574,12 @@ class Wall(Object):
 
     def special_horizontal(self):
         return self.get('LOCATION') in ['TOP', 'BOTTOM']
+
+    def x_global(self):
+        return self.parent.x_global() + self.x() 
+
+    def y_global(self):
+        return self.parent.y_global() + self.y() 
 
     def z_global(self):
         return self.parent.z_global() + self.z()
@@ -574,7 +639,7 @@ class Wall(Object):
             return None
 
         v1, v2 = self.get_vertices()[:2]
-        angle = e_math.get_angle(*self.get_vertices()[:2])
+        angle = e_math.get_angle(*self.get_vertices()[:2], cartesian=False)
         if kind == 'doe':
             angle = e_math.swap_angle(angle)
         return angle
@@ -627,15 +692,18 @@ class Wall_Object(Object):
 
         Object.__init__(self, b, name, kind, parent)
 
-
     def x(self):
-        return self.parent.x() + self.get('X')
+        self.get('X')
 
     def y(self):
-        return self.parent.y() + self.get('Y')
+        self.get('Y')
 
-    def z(self):
-        return self.parent.z() + self.get('Z')
+    def x_global(self):
+        pass #TODO - make this as needed
+        return 
+
+    def y_global(self):
+        pass #TODO - make this as needed
 
     def z_global(self):
 
@@ -762,14 +830,58 @@ if __name__ == '__main__':
     b1 = Building()
     b1.load(os.path.join('compare', 'b1.inp'))
 
-    b2 = Building()
-    b2.load(os.path.join('compare', 'b2.inp'))
+    spaces = b1.kinds('SPACE').values()
+    checked = []
 
-    compare = Comparison(b1, b2)
-    b1.dump('compare/test1.inp')
-    b2.dump('compare/test2.inp')
-    b3 = compare.combine(resolve=Comparison.LEFT)
-    b3.dump('compare/test3.inp')
+    # Identify candidate adjacent space pairs
+    space_pairs = []
+    for space in spaces:
+        checked.append(space)
+        for other_space in set(spaces) - set(checked):
+            if (space.poly().distance(other_space.poly())) > 1:
+                # Other space is too far away horizontally
+                continue
+            elif Dec(space.vertical_overlap(other_space)) == 0:
+                # Other space is too far away vertically
+                continue
+            space_pairs.append((space, other_space))
+    
+    # Identify candidate adjacent wall pairs
+    wall_pairs = []
+    for space, other_space in space_pairs:
+        for i, line in enumerate(space.lines(), 1):
+            if line.distance(other_space.poly()) > 1:
+                continue
+                # Other space it too far away from this wall
+            line_angle = e_math.get_angle(*list(line.coords))
+            for j, other_line in enumerate(other_space.lines(), 1):
+                other_line_angle = e_math.get_angle(*list(other_line.coords))
+                a_difference = e_math.angle_difference(line_angle, other_line_angle)
+                if line.distance(other_line) > 1:
+                    # Other wall too far away
+                    continue
+                if abs(a_difference-180) > 5:
+                    # Other wall not opposite facing
+                    continue
+                if line.p1.distance(other_line.p1) < 1 or line.p2.distance(other_line.p2) < 1:
+                    # Walls share wrong point
+                    continue
+                wall_pair = (space.name, i, other_space.name, j)
+                if line.p1.distance(other_line.p2) < 1 and line.p2.distance(other_line.p1) < 1:
+                    wall_pairs.append(wall_pair)
+                    continue
+                bad_wall_pairs.append(wall_pair)
+        
+    print 'discovered %s wall_pairs' % len(wall_pairs)
+    print 'discovered %s bad_wall_pairs' % len(bad_wall_pairs)
+    print bad_wall_pairs
+
+    print "done"
+    #compare = Comparison(b1, b2)
+    #b1.dump('compare/test1.inp')
+    #b2.dump('compare/test2.inp')
+    #b3 = compare.combine(resolve=Comparison.LEFT)
+    #b3.dump('compare/test3.inp')
 
 
 

@@ -11,29 +11,20 @@ def reduce_angle(a):
     '''forces angle between 0 and 360'''
     return a%360
 
+def angle_difference(a1, a2):
+    return abs((a1 - a2 + 180) % 360 - 180)
+
 def swap_angle(a):
     return (180-a)%360
 
-def get_angle(p1, p2, style='doe'):
+def get_angle(p1, p2, cartesian=False):
 
     x1, y1 = [float(p) for p in p1]
     x2, y2 = [float(p) for p in p2]
 
-    try:
-        atan = math.atan((y2-y1)/(x2-x1)) *180 / 3.14159
-    except ZeroDivisionError:
-        atan = 90
+    a = math.atan2((y2-y1),(x2-x1)) * 180 / math.pi
 
-    if x2 >= x1 and y2 >= y1:
-        a = 180 - atan
-    elif x2 <= x1 and y2 >= y1:
-        a = - atan
-    elif x2 <= x1 and y2 <= y1:
-        a = 360 - atan
-    elif x2 >= x1 and y2 <= y1:
-        a = 180 - atan
-
-    if style == 'doe':
+    if cartesian:
         return a
     else:
         return swap_angle(a)
@@ -129,62 +120,6 @@ def rotate(x, y, r):
     return x2, y2
 
 
-
-def eQuest_to_shapely_poly(p):
-    return Poly(p.vertices)
-
-def shapely_polygon_to_shapely_lines(polygon):
-     n = len(polygon.exterior.coords)
-     return [(LineString(
-            [polygon.exterior.coords[c],
-            polygon.exterior.coords[c+1]]))
-            for c in range(0,n-1)]
-
-def shapely_line_string_angle(ls):
-     c1 = ls.coords[0]
-     c2 = ls.coords[1]
-     return get_angle(c1, c2)
-
-def shapely_to_eQuest_poly(obj):
-    if type(obj) == MultiPolygon:
-        m = []
-        for polygon in obj.geoms:
-            t = polygon.exterior.coords
-            l = []
-            for v in t:
-                v0 = str(round(v[0],2))
-                v1 = str(round(v[1],2))
-                l.append([v0, v1])
-            l = l[:-1]
-            if not is_ccw(l):
-                l.reverse()
-            m.append(l)
-
-    elif type(obj) == Poly:
-        m = []
-        t = obj.exterior.coords
-        l = []
-        for v in t:
-            v0 = str(round(v[0],2))
-            v1 = str(round(v[1],2))
-            l.append([v0, v1])
-        l = l[:-1]
-        if not is_ccw(l):
-            l.reverse()
-        m.append(l)
-
-    mNew  = []
-    for p in m:
-        pNew = []
-        for c in range(0,len(p)):
-            p1 = p[c]
-            p2 = p[(c+1)%len(p)]
-            if p1 != p2:
-                pNew.append(p[c])
-        mNew.append(pNew)
-
-    return mNew
-
 def convert_feet(s):
 
     if '_' in s:
@@ -193,18 +128,6 @@ def convert_feet(s):
         f, i = float(s), 0
     return (f + i/12)
 
-
-def returnTrueCoords(o, p, rotate, scale=9):
-    # for window fdf import
-    if rotate == 'Rotate 270':
-        x1 = (o[0] - float(p[3]))/scale
-        y1 = (float(p[0]) - o[1])/scale
-        x2 = (o[0] - float(p[1]))/scale
-        y2 = (float(p[2]) - o[1])/scale
-    else:
-        print 'I do not recognize the rotate value'
-
-    return [[x1, y1], [x2,y2]]
 
 def getParams(s):
     bracket = s.find('[')
