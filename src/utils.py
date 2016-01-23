@@ -1,17 +1,66 @@
-import os, utils, textwrap
+import os, utils, textwrap, re
 
-def splitter(s):
-    pad = ' '*9
-    if s.count(',') > 1:
-        # put items of comma separated list on separate lines
-        text = '   ' + (',\n' + pad).join([i.strip() for i in s.split(',')])
-
+def last_split_point(s, max):
+    split_point = 0
+    for i in range(max):
+        if s[i] != ' ':
+            continue
+        elif s[:i].count('"')%2:
+            continue
+        elif i > 1 and s[i-1] == '=':
+            continue
+        elif not len(s) > i and s[i+1] == '=':
+            continue
+        else:
+            split_point = i
+    if not split_point:
+        raise Exception('Could not find split point')
     else:
-        # otherwise, just make sure it's not more than 75 charaters
-        wrapper = textwrap.TextWrapper(width=75, subsequent_indent=pad)
-        text = '\n'.join(wrapper.wrap(s))
+        return split_point
 
-    return text
+def splitter(s, max):
+
+    lines = []
+    remaining = s
+
+    while len(remaining) > max:
+        new_split_point = last_split_point(remaining, max)
+        lines.append(remaining[:new_split_point])
+        remaining = remaining[new_split_point:]
+
+    lines.append(remaining)
+    return '\n'.join(lines)
+
+def wrap(s):
+    return '"' + s + '"'    
+
+def unwrap(s):
+    return s[1:-1]
+
+def rewrap(s, new_text):
+    return wrap(unwrap(s) + new_text)
+
+def outdent(s, count):
+    pat = r'^' + ' ' * count
+    return re.sub(pat, '', s)
+
+def merge_dicts(x, y):
+    z = y.copy()
+    z.update(x)
+    return z    
+
+def dedupe(l):
+    while l[0] == l[-1]:
+        l.pop()
+    i = 1
+    n = len(l)
+    while i < n:
+        if l[i] == l[i-1]:
+            del l[i]
+            n -= 1
+        else:
+            i += 1 
+
 
 
 def src_dir():

@@ -1,7 +1,7 @@
 import math
-from shapely.geometry import Polygon as Poly
-from shapely.geometry import Point as Pt
-from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
+
+def tol(n1, n2, tol=0.01):
+    return abs((n1-n2)/n1) < tol
 
 
 def distance(p1, p2):

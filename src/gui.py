@@ -28,7 +28,7 @@ class Batch(QtGui.QWidget):
         grid.setSpacing(10)
 
         self.b = eo.Building()
-        self.b.load('input/Kendrick.inp')
+        self.b.load('../samples/input/inp/Kendrick.inp')
 
         # which kinds in which tab
         self.kind_map = {

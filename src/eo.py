@@ -1,6 +1,6 @@
 from collections import OrderedDict, namedtuple
 import re, time, os, ref, e_math, math, utils
-from shapely.geometry import Polygon as Poly
+from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
 import copy
 from pprint import pprint as pp
@@ -17,6 +17,7 @@ class Building(object):
     def __init__(self):
         self.objects = OrderedDict()
         self.defaults = OrderedDict()
+        self.parameters = OrderedDict()
         self.selected = []
 
     def load(self, fn):
@@ -27,15 +28,24 @@ class Building(object):
 
     def read(self, text):
         text = self.clean_file(text)
+        objects = self.split_objects(text)
         self.objectify(self.split_objects(text))
 
-
-    def kinds(self, kind):
+    # not sure why this was written this way, rewritten below
+    def __kinds(self, kind):
         '''OrderedDict of objects only of kind'''
         kinds = copy.copy(self.objects)
         for k, v in sorted(kinds.items()):
             if v.kind != kind:
                 del kinds[k]
+        return kinds
+
+    def kinds(self, kind):
+        '''OrderedDict of objects only of kind'''
+        kinds = OrderedDict()
+        for name, obj in self.objects.items():
+            if obj.kind == kind:
+                kinds[name] = obj
         return kinds
 
     def dump(self, fn=None, backup=False):
@@ -52,10 +62,16 @@ class Building(object):
             os.remove(fn)
 
         t = ''
+        defaults_written = []
         for kind in ref.kind_list:
-            for default in self.defaults.values():
-                if default.kind == kind:
-                    t += default.write()
+            if kind == 'PARAMETER':
+                for parameter in self.parameters.values():
+                    t += parameter.write()
+            for name, default in self.defaults.items():
+                if ref.in_same_group(default.kind, kind):
+                    if not default in defaults_written:
+                        t += default.write()
+                        defaults_written.append(default)
 
             if not kind in ref.parents.keys():
                 for o in self.kinds(kind).values():
@@ -76,17 +92,20 @@ class Building(object):
 
     def clean_object(self, object):
         lines = [l.strip() for l in object.split('\n') if l.strip()]
-        new_line, new_lines = '', []
-        opens, closes = 0 ,0
+        if not lines:
+            return ''
 
-        for i, line in enumerate(lines):
-            new_line += line
-            opens += len(re.findall('[\{\(]', line))
-            closes += len(re.findall('[\}\)]', line))
-            if opens == closes and line[-1] != '=':
+        new_lines = []
+        new_line, attr_lines =  lines[0],lines[1:]
+
+        for i, line in enumerate(attr_lines):
+            if re.search(r' =($| )', line):
                 new_lines.append(new_line)
-                new_line = ''
+                new_line = line
+            else:
+                new_line += ' ' + line
 
+        new_lines.append(new_line)
         return '\n'.join(new_lines)
 
     def objectify(self, object_text_list):
@@ -105,6 +124,11 @@ class Building(object):
                 d.read(lines)
                 continue
 
+            if lines[0].strip() == 'PARAMETER':
+                p = Parameter(self)
+                p.read(lines)
+                continue
+
             if '=' in lines[0]:
                 name, kind = [s.strip() for s in lines[0].split('=')]
             else:
@@ -114,7 +138,6 @@ class Building(object):
                 parent = current_parent[ref.parents[kind]]
             else:
                 parent = None
-
 
             # Load special objects
             if kind == 'FLOOR':
@@ -176,6 +199,37 @@ class Building(object):
         else:
             return {}
 
+    def extend(self, other):
+        self.objects.update(other.objects)
+        self.defaults.update(other.defaults)
+        self.parameters.update(other.parameters)
+
+
+    def space_pairs(self, tol=0.0001):
+        '''returns a list of spaces pairs which are adjacent to one another'''
+        spaces = self.kinds('SPACE').values()
+        checked = []
+    
+        # Identify candidate adjacent space pairs
+        horiz_space_pairs, vert_space_pairs = [], []
+        for space in spaces:
+            checked.append(space)
+            for space2 in set(spaces) - set(checked):
+                if (space.shapely_poly().distance(space2.shapely_poly())) > tol:
+                    # Other space is too far away horizontally
+                    continue
+                vertical_overlap = space.vertical_overlap(space2)
+                if vertical_overlap < -tol:
+                    # Other space is too far away vertically
+                    continue
+                if vertical_overlap < tol:
+                    vert_space_pairs.append(Space.vertically_ordered(space,
+                        space2))
+                    continue
+                horiz_space_pairs.append((space, space2))
+        return horiz_space_pairs, vert_space_pairs
+
+
 class Default(object):
 
     def __init__(self, b, kind, type=None):
@@ -211,7 +265,7 @@ class Default(object):
                 a += k + ' = ' + str(v)
             else:
                 a = '   ' + k
-            t += utils.splitter(a) + '\n'
+            t += utils.splitter(a, 65) + '\n'
 
         t += '   ..\n'
         return t
@@ -220,6 +274,22 @@ class Default(object):
     def delete(self):
         del self
 
+
+class Parameter(object):
+    def __init__(self, b, name=None, kind=None, parent=None):
+        self.b = b
+
+    def read(self, lines):
+        self.name, self.value = [t.strip() for t in lines[1].split('=')]
+        self.b.parameters[self.name] = self
+
+    def load(self, name, value):
+        self.name = name
+        self.value = value
+        self.b.parameters[self.name] = self
+
+    def write(self):
+        return 'PARAMETER\n  %s = %s\n  ..\n' % (self.name, self.value)
 
 class Object(object):
 
@@ -256,6 +326,12 @@ class Object(object):
                 n, v = line, None
             self.attr[n] = v
 
+    def adopt(self, child):
+        '''move from one parent to another'''
+        child.parent.children.remove(child)
+        child.parent = self
+        self.children.append(child)
+
     def write(self):
 
         t = ''
@@ -270,7 +346,7 @@ class Object(object):
                 a += k + ' = ' + str(v)
             else:
                 a = '   ' + k
-            t += utils.splitter(a) + '\n'
+            t += utils.splitter(a, 65) + '\n'
 
         t += '   ..\n'
 
@@ -285,7 +361,7 @@ class Object(object):
         if attr in self.attr:
             value = self.attr[attr]
             if attr in ref.numeric:
-                return Dec(value)
+                return float(value)
             else:
                 return value
 
@@ -307,9 +383,9 @@ class Object(object):
             return True
         elif like and like in self.attr[attr]:
             return True
-        elif min != None and Dec(self.attr[attr]) < min:
+        elif min != None and float(self.attr[attr]) < min:
             return False
-        elif max != None and Dec(self.attr[attr]) > max:
+        elif max != None and float(self.attr[attr]) > max:
             return False
         else:
             return True
@@ -323,7 +399,7 @@ class Polygon(Object):
     def __init__ (self, b, name=None, kind='POLYGON'):
         self.b = b
         self.vertices = []
-        self.poly = None
+        self.shapely_poly = None
         Object.__init__(self, b, name, kind)
 
     @property
@@ -337,7 +413,7 @@ class Polygon(Object):
         return attr
 
     def regenerate(self):
-        self.poly = Poly(self.vertices)
+        self.shapely_poly = ShapelyPoly(self.vertices)
 
         self.lines = []
         for ps in self.sequential_vertices_list():
@@ -346,6 +422,13 @@ class Polygon(Object):
             self.lines.append(line)
         self.points = [Point(p) for p in self.vertices]
     
+    def set_vertices(self, vertices):
+        if isinstance(vertices, ShapelyPoly):
+            self.vertices = list(shapely_polygon.exterior.coords)[:-1]
+        else:
+            self.vertices = vertices
+        self.regenerate()
+
     def delete_verticy(self, v):
         self.vertices.pop(v+1)
         self.regenerate()
@@ -363,11 +446,11 @@ class Polygon(Object):
             else:
                 n, v = line, None
             x, y = v[1:-1].split(',')
-            self.vertices.append([Dec(x),Dec(y)])
+            self.vertices.append([float(x),float(y)])
         self.regenerate()
     
     def area(self):
-        return self.poly.area
+        return self.shapely_poly.area
 
     def delete_sequential_dupes(self, tol=0.1):
         new = []
@@ -378,7 +461,6 @@ class Polygon(Object):
         self.vertices = new
         self.regenerate()
 
-
     def get_vertices(self, v):
         vertices = self.vertices + [self.vertices[0]]
         return vertices[v-1:v+1]
@@ -388,7 +470,11 @@ class Polygon(Object):
             for i in range(len(self.vertices))]
 
     def is_ccw(self):
-        return self.poly.is_ccw()
+        return self.shapely_poly.is_ccw()
+
+    def mirror(self):
+        self.vertices = ([[y, x] for x, y in self.vertices])
+        self.regenerate()
 
 class Floor(Object):
 
@@ -423,6 +509,7 @@ class Floor(Object):
     def delete(self):
         for space in self.children:
             space.delete()
+        del self.b.objects[self.name]
         del self
 
 
@@ -432,6 +519,13 @@ class Space(Object):
 
         Object.__init__(self, b, name, kind, parent)
 
+    @classmethod
+    def vertically_ordered(cls, space1, space2):
+        if space1.z_global() <= space2.z_global():
+            return space1, space2
+        else:
+            return space2, space1
+
     def x(self):
         return self.get('X')
 
@@ -440,7 +534,7 @@ class Space(Object):
 
     def z(self):
         if 'Z' in self.attr:
-            return Dec(self.attr['Z'])
+            return float(self.attr['Z'])
         elif self.is_plenum():
             return self.parent.get('SPACE-HEIGHT')
         else:
@@ -457,7 +551,7 @@ class Space(Object):
 
     def height(self):
         if 'HEIGHT' in self.attr:
-            return Dec(self.attr['HEIGHT'])
+            return float(self.attr['HEIGHT'])
         elif self.is_plenum():
             return self.parent.get('FLOOR-HEIGHT') - self.parent.get('SPACE-HEIGHT')
         else:
@@ -467,10 +561,10 @@ class Space(Object):
         return self.get('ZONE-TYPE') == 'PLENUM'
 
     def polygon(self):
-        return self.b.objects[self.get('POLYGON')]
+        return self.b.objects[self.attr['POLYGON']]
 
-    def poly(self):
-        return self.polygon().poly
+    def shapely_poly(self):
+        return self.polygon().shapely_poly
 
     def lines(self):
         return self.polygon().lines
@@ -508,6 +602,9 @@ class Space(Object):
 
         return k
 
+    def extents(self):
+        pass
+
     def delete(self):
         for wall in self.e_walls() + self.i_walls() + self.u_walls():
             wall.delete()
@@ -520,7 +617,7 @@ class Space(Object):
         u2 = l2 + other.height()
         u = min(u1, u2)
         l = max(l1, l2)
-        return max(u - l,0)
+        return u - l
 
     def adjacent(self):
         pass
@@ -550,7 +647,7 @@ class Wall(Object):
 
     def x(self):
         if 'X' in self.attr:
-            return Dec(self.attr['X'])
+            return float(self.attr['X'])
         elif self.get_side_number():
             return self.get_vertices()[0][0]
         else:
@@ -558,7 +655,7 @@ class Wall(Object):
 
     def y(self):
         if 'Y' in self.attr:
-            return Dec(self.attr['Y'])
+            return float(self.attr['Y'])
         elif self.get_side_number():
             return self.get_vertices()[0][0]
         else:
@@ -566,7 +663,7 @@ class Wall(Object):
 
     def z(self):
         if 'Z' in self.attr:
-            return Dec(self.attr['Z'])
+            return float(self.attr['Z'])
         elif self.get('LOCATION') == 'TOP':
             return self.parent.get('Z')
         else:
@@ -833,24 +930,13 @@ if __name__ == '__main__':
     spaces = b1.kinds('SPACE').values()
     checked = []
 
-    # Identify candidate adjacent space pairs
-    space_pairs = []
-    for space in spaces:
-        checked.append(space)
-        for other_space in set(spaces) - set(checked):
-            if (space.poly().distance(other_space.poly())) > 1:
-                # Other space is too far away horizontally
-                continue
-            elif Dec(space.vertical_overlap(other_space)) == 0:
-                # Other space is too far away vertically
-                continue
-            space_pairs.append((space, other_space))
     
     # Identify candidate adjacent wall pairs
     wall_pairs = []
-    for space, other_space in space_pairs:
+    bad_wall_pairs = []
+    for space, other_space in b1.space_pairs():
         for i, line in enumerate(space.lines(), 1):
-            if line.distance(other_space.poly()) > 1:
+            if line.distance(other_space.shapely_poly()) > 1:
                 continue
                 # Other space it too far away from this wall
             line_angle = e_math.get_angle(*list(line.coords))

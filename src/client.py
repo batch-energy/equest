@@ -1,3 +1,5 @@
+import os
+
 def get_client():
     if 'seed_tnz.inp' in os.listdir('.'):
         return 'TNZ'
@@ -13,7 +15,7 @@ def get_client_construction():
 
     if client == 'DMI':
 
-        construction['airwall'] = '"AIR WALL CONSTRUCTION"'
+        construction['air'] = '"AIR WALL CONSTRUCTION"'
         construction['interior'] = '"INTERIOR WALL CONSTRUCTION"'
         construction['exterior'] = '"EXTERIOR WALL CONSTRUCTION"'
         construction['underground'] = '"UNDERGROUND WALL CONSTRUCTION"'
@@ -26,9 +28,9 @@ def get_client_construction():
         construction['underground_slab'] = '"SUBGRADE SLAB CONSTRUCTION"'
         construction['overhang'] = '"EXTERIOR FLOOR CONSTRUCTION"'
 
-    if client == 'TNZ':
+    elif client == 'TNZ':
 
-        construction['airwall'] = '"AIR WALL"'
+        construction['air'] = '"AIR WALL"'
         construction['interior'] = '"INT WALL CONST"'
         construction['exterior'] = '"EXT WALL CONST"'
         construction['underground'] = '"SUB WALL CONST"'
@@ -39,5 +41,20 @@ def get_client_construction():
         construction['underground_slab'] = '"SUB WALL CONST"'
         construction['overhang'] = '"EXT FLOOR CONST"'
         construction['roof'] = '"ROOF CONST"'
+
+    else:
+        construction['air'] = '"AIR WALL CONSTRUCTION"'
+        construction['interior'] = '"INTERIOR WALL CONSTRUCTION"'
+        construction['exterior'] = '"EXTERIOR WALL CONSTRUCTION"'
+        construction['underground'] = '"UNDERGROUND WALL CONSTRUCTION"'
+
+        construction['slab'] = '"INTERIOR SLAB CONSTRUCTION"'
+        construction['ceiling'] = '"INTERIOR CEILING CONSTRUCTION"'
+
+        construction['roof'] = '"EXTERIOR ROOF CONSTRUCTION"'
+
+        construction['underground_slab'] = '"SUBGRADE SLAB CONSTRUCTION"'
+        construction['overhang'] = '"EXTERIOR FLOOR CONSTRUCTION"'
+
 
     return construction
