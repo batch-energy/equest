@@ -551,23 +551,24 @@ class Space(Object):
     def is_plenum(self):
         return self.get('ZONE-TYPE') == 'PLENUM'
 
+    @property
     def polygon(self):
         return self.b.objects[self.attr['POLYGON']]
 
     def shapely_poly(self):
-        return self.polygon().shapely_poly
+        return self.polygon.shapely_poly
 
     def lines(self):
-        return self.polygon().lines
+        return self.polygon.lines
 
     def points(self):
-        return self.polygon().points
+        return self.polygon.points
 
     def count_vertices(self):
         return len(self.vertices())
 
     def vertices(self):
-        return self.polygon().vertices
+        return self.polygon.vertices
 
     def all_i_walls(self): # include ones for which this is the other space
         return [i_wall for i_wall in self.b.objects['INTERIOR-WALL']
@@ -706,7 +707,7 @@ class Wall(Object):
             return None
 
     def get_vertices(self):
-        polygon = self.parent.polygon()
+        polygon = self.parent.polygon
         side_number = self.get_side_number()
         return polygon.get_vertices(side_number)
 
