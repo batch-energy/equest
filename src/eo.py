@@ -31,15 +31,6 @@ class Building(object):
         objects = self.split_objects(text)
         self.objectify(self.split_objects(text))
 
-    # not sure why this was written this way, rewritten below
-    def __kinds(self, kind):
-        '''OrderedDict of objects only of kind'''
-        kinds = copy.copy(self.objects)
-        for k, v in sorted(kinds.items()):
-            if v.kind != kind:
-                del kinds[k]
-        return kinds
-
     def kinds(self, kind):
         '''OrderedDict of objects only of kind'''
         kinds = OrderedDict()
