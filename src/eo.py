@@ -1,14 +1,21 @@
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, defaultdict
 import re, time, os, ref, e_math, math, utils
+from e_math import is_close, distance, angle, projected_distance, angle_distance, dist
 from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
 import copy
-from pprint import pprint as pp
-from decimal import Decimal as Dec
-import decimal
-decimal.getcontext().prec = 4
+from client import get_client_construction
+from string import ascii_lowercase
+import svg_file
+from utils import wrap, unwrap
+
+class RegenerateError(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
 
 class Filter(object):
+    
     def __init__(self):
         attr = {}
 
@@ -18,7 +25,6 @@ class Building(object):
         self.objects = OrderedDict()
         self.defaults = OrderedDict()
         self.parameters = OrderedDict()
-        self.selected = []
 
     def load(self, fn):
         self.fn = fn
@@ -27,9 +33,8 @@ class Building(object):
         self.read(text)
 
     def read(self, text):
-        text = self.clean_file(text)
-        objects = self.split_objects(text)
-        self.objectify(self.split_objects(text))
+        text = self.__clean_file(text)
+        self.__objectify(self.__split_objects(text))
 
     def kinds(self, kind):
         '''OrderedDict of objects only of kind'''
@@ -39,15 +44,9 @@ class Building(object):
                 kinds[name] = obj
         return kinds
 
-    def dump(self, fn=None, backup=False):
+    def dump(self, fn=None):
 
         fn = fn or self.fn
-
-        if backup:
-            if not os.path.exists('backup'):
-                os.mkdir('backup')
-            fn = os.path.join('backup', fn.replace(
-                '.inp', time.strftime('_%y%m%d-%H%M%S.inp')))
 
         if os.path.exists(fn):
             os.remove(fn)
@@ -74,23 +73,23 @@ class Building(object):
         with open(fn, 'w') as f:
             f.write(t)
 
-    def clean_file(self, text):
+    def __clean_file(self, text):
         return '\n'.join([l.strip() for l in text.split('\n')
             if l.strip() and not l.strip()[0] == '$'])
 
-    def split_objects(self, text):
-        return [self.clean_object(o) for o in text.split('..')]
+    def __split_objects(self, text):
+        return [self.__clean_object(o) for o in text.split('..')]
 
-    def clean_object(self, object):
+    def __clean_object(self, object):
         lines = [l.strip() for l in object.split('\n') if l.strip()]
         if not lines:
             return ''
 
         new_lines = []
-        new_line, attr_lines =  lines[0],lines[1:]
+        new_line, attr_lines = lines[0], lines[1:]
 
         for i, line in enumerate(attr_lines):
-            if re.search(r' =($| )', line):
+            if not i or re.search(r' =($| )', line):
                 new_lines.append(new_line)
                 new_line = line
             else:
@@ -99,7 +98,7 @@ class Building(object):
         new_lines.append(new_line)
         return '\n'.join(new_lines)
 
-    def objectify(self, object_text_list):
+    def __objectify(self, object_text_list):
         current_parent = {}
         for object_text in object_text_list:
             lines = object_text.split('\n')
@@ -146,7 +145,7 @@ class Building(object):
             elif kind == 'DOOR':
                 o = Door(self, name, kind, parent=parent)
             elif kind == 'SYSTEM':
-                o = Window(self, name, kind, parent=parent)
+                o = System(self, name, kind, parent=parent)
             elif kind == 'ZONE':
                 o = Zone(self, name, kind, parent=parent)
             elif kind == 'POLYGON':
@@ -156,27 +155,6 @@ class Building(object):
             o.read(lines)
 
             current_parent[kind] = o
-
-    def select(self, name):
-        self.objects[name].selected = True
-        if not self.objects[name].selected:
-            self.selected.append(name)
-
-    def toggle(self, name):
-        if self.objects[name].selected:
-            self.selected.remove(name)
-            self.objects[name].selected = False
-        else:
-            self.selected.append(name)
-            self.objects[name].selected = True
-
-    def deselect(self, name):
-        if self.objects[name].selected:
-            self.selected.remove(name)
-        self.objects[name].selected = True
-
-    def selected_by_kind(self, kind):
-        return [name for name, object in self.kinds(kind).items() if object.selected]
 
     def get_object_attr(self, object_name):
         if object_name in self.objects:
@@ -195,18 +173,20 @@ class Building(object):
         self.defaults.update(other.defaults)
         self.parameters.update(other.parameters)
 
+    def space_pairs(self, tol=0.1):
 
-    def space_pairs(self, tol=0.0001):
-        '''returns a list of spaces pairs which are adjacent to one another'''
+        '''Returns a list of spaces pairs which are adjacent to one another'''
+
         spaces = self.kinds('SPACE').values()
-        checked = []
+        checked_set = set()
+        space_set = set(spaces)
     
         # Identify candidate adjacent space pairs
         horiz_space_pairs, vert_space_pairs = [], []
         for space in spaces:
-            checked.append(space)
-            for space2 in set(spaces) - set(checked):
-                if (space.shapely_poly().distance(space2.shapely_poly())) > tol:
+            checked_set.add(space)
+            for space2 in space_set - checked_set:
+                if (space.shapely_poly.distance(space2.shapely_poly)) > tol:
                     # Other space is too far away horizontally
                     continue
                 vertical_overlap = space.vertical_overlap(space2)
@@ -219,6 +199,544 @@ class Building(object):
                     continue
                 horiz_space_pairs.append((space, space2))
         return horiz_space_pairs, vert_space_pairs
+
+    def make_walls(self):
+
+        '''Make interior walls, then exterior walls where there are no interio ones'''
+
+        construction = get_client_construction()
+        bad_space_pairs = []
+
+        space_pairs = self.space_pairs()
+
+        # Indentify interior walls
+        interior_walls = defaultdict(list)
+        for space_1, space_2 in self.space_pairs()[0]:
+            z_min, z_max = space_1.overlap_heights(space_2)
+            for i, ls1 in enumerate(space_1.polygon.lines, 1):
+                points_1 = space_1.point_pair_shapely(i)
+                for j, ls2 in enumerate(space_2.polygon.lines, 1):
+                    points_2 = space_2.point_pair_shapely(j)
+                    if ls1.distance(ls2) > 0.1:
+                        continue
+                    elif points_1[0].distance(points_2[0]) < 0.1:
+                        continue 
+                    elif points_1[1].distance(points_2[1]) < 0.1:
+                        continue 
+                    elif abs(180 - angle(ls1.coords, ls2.coords)) > 5:
+                        continue
+                    elif points_1[0].distance(points_2[1]) < 0.1 and points_1[1].distance(points_2[0]) < 0.1:
+                        interior_walls[(space_1.name, i)].append((space_2.name, (z_min, z_max)))
+                        interior_walls[(space_2.name, j)].append((space_1.name, (z_min, z_max)))
+                    else:
+                        bad_space_pairs.append([(space_1.name, i), (space_2.name, j)])
+                    
+        if bad_space_pairs:
+            print '\n  Bad Space Pairs, %s\n' % len(bad_space_pairs)
+            for pair in bad_space_pairs:
+                print '    ' + '  -  '.join(['%s : %s ' % (name, i) for (name, i) in pair])
+            print '\n  Exterior wall will be made for these, but they are probably not exterior walls\n'
+
+            raw_input('\n  > Enter to Continue')  
+
+        # Create interior walls
+        for (space_name, wall_index), adjacents in interior_walls.items():
+            for other_space_name, (lower, upper) in adjacents:
+                if space_name < other_space_name:
+                    continue
+                space = self.objects[space_name]
+                other_space = self.objects[other_space_name]
+                name = space.name[:-1] + '-I%s_%s"' % (wall_index, other_space_name[1:-1].split('-')[1])
+                space_min = space.z_global()
+                space_max = space_min + space.height()
+                i = I_Wall(self, name=name, parent=space)
+                z = lower - space.z_global()
+                if not is_close(lower, space_min, 0.1):
+                    i.attr['Z'] = z
+                if not is_close(upper-lower, space_max-space_min, 0.1): 
+                    i.attr['HEIGHT'] = upper - lower
+                i.attr['NEXT-TO'] = other_space_name
+                i.attr['LOCATION'] = 'SPACE-V%s' % (wall_index)
+                if space.is_plenum() and other_space.is_plenum():
+                    i.attr['CONSTRUCTION'] = construction['air']
+                else:
+                    i.attr['CONSTRUCTION'] = construction['interior']
+    
+        # Create exterior walls
+        for space in self.kinds('SPACE').values():
+            space_min = space.z_global()
+            space_max = space_min + space.height()
+            for i in range(1, len(space.vertices()) + 1):
+                adjacents = interior_walls.get((space.name, i), [])
+                pairs = [a[1] for a in adjacents]
+                spans = [s for s in e_math.overlap_split([space_min, space_max], pairs)[1]]
+                
+                for j, (lower, upper) in enumerate(spans, 1):
+                    if is_close(lower, upper, 0.1):
+                        continue
+                    suffix = '' if (len(spans) == 1) else ('_%s' % j)
+                    name = space.name[:-1] + '-E%s%s"' % (i, suffix)
+                    e = E_Wall(self, name=name, parent=space)
+                    z = lower - space.z_global()
+                    if not is_close(lower, space_min, 0.1):
+                        e.attr['Z'] = z
+                    if not is_close(upper-lower, space_max-space_min, 0.1):
+                        e.attr['HEIGHT'] = upper - lower
+                    e.attr['LOCATION'] = 'SPACE-V%s' % (i)
+                    e.attr['CONSTRUCTION'] = construction['exterior']
+
+    def apply_grade(self, default=0, gradelines=None):
+        gradelines = gradelines or []
+    
+    def convert_obvious_underground_walls(self):
+
+        '''Convert Ewall to Uwall if it's under a Uwall floor'''
+
+        ewall_midpoints = {ewall:Point(ewall.midpoint())
+            for ewall in self.kinds('EXTERIOR-WALL').values()
+            if ewall.is_regular_wall()}
+
+        underground_floors = [ugw
+            for ugw in self.kinds('UNDERGROUND-WALL').values()
+            if ugw.tilt() == 180]
+        
+        for ewall, ewall_midpoint in ewall_midpoints.items():
+            for ugf in underground_floors:
+                if ewall.z_global() < ugf.z_global():
+                    if ewall_midpoint.distance(ugf.parent.polygon.shapely_poly) < 1:
+                        ewall.to_uwall()
+
+    def make_windows(self, svg_path, tol_d=5, tol_a=5):
+
+        '''Make windows from svg projections'''
+
+
+        Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'scale', 'split', 'material', 'plenum'])
+    
+        svg = svg_file.Svg_Page(svg_path)
+    
+        # - Sizes and attributes are ALL based off the color
+        # - each color for windows should have single one, of the same color with a
+        #   title and attributes defeined in the xml directly
+        # - attributes are:
+        #   _h : height
+        #   _w : width
+        #   _r : reduce to
+        #   _s : split y/[n]
+        #   _c : construction (for doors)
+        #   _gt : glass type (for windows)
+        #   _plenum : include on plenum y/[n]
+    
+        color_map = {}
+        for window in svg.windows:
+            color = window.color_id()
+    
+            if window.title:
+                if color in color_map:
+                    raise Exception('title defined multiple times for color %s' % color)
+
+                # TODO - Handle default more gracefully    
+                if '#000000' in color or window.get('_c'):
+                    kind = 'door'
+                    material = window.get('_c') or get_client_construction()['exterior']
+                else:
+                    kind = 'window'
+                    material = window.get('_gt') or get_client_glass()
+    
+                color_map[color] = Window_Kind(
+                    kind,
+                    window.title,
+                    e_math.convert_feet(window.get('_h')) if window.get('_h') else None,
+                    e_math.convert_feet(window.get('_w')) if window.get('_w') else None,
+                    float(window.get('_r')) if window.get('_r') else 1,
+                    window.get('_s') and window.get('_s').startswith('y'),
+                    material,
+                    (window.get('_plenum') or 'no').startswith('y')
+                    )
+    
+        for color in sorted(svg.color_ids()):
+            if not color in color_map:
+                raise Exception('Color %s defined' % color)
+    
+        for projection in svg.projections:
+
+            # This loop because it's possible for projection to
+            # represent more than one identical wall
+            for reference_wall_name in projection.walls:
+
+                try:
+                    reference_wall = self.objects.get(wrap(reference_wall_name))
+                except KeyError as e:
+                    print 'Wall %s not found' % reference_wall_name
+                    raise
+
+                ref_p1, ref_p2 = reference_wall.get_vertices()
+                
+                for wall in reference_wall.planar_walls(tol_d=tol_d, tol_a=tol_a):
+                    w_p1, w_p2 = wall.get_vertices()
+
+                    origin_shift = projected_distance(ref_p1, reference_wall.angle(), w_p1)
+                    if distance(w_p1, ref_p2) > distance(w_p2, ref_p1):
+                         origin_shift = -origin_shift
+    
+                    wall_x1 = origin_shift
+                    wall_y1 = wall.z_global() - reference_wall.z_global()
+                    wall_width = wall.width()
+                    wall_height = wall.height()
+                    wall_x2 = wall_x1 + wall_width
+                    wall_y2 = wall_y1 + wall_height
+
+                    for i, window in enumerate(projection.windows, 1):
+    
+                        window_data = color_map[window.color_id()]
+
+                        # Plenum walls normally ignored 
+                        if window_data.plenum == False and wall.parent.is_plenum():
+                            continue
+    
+                        window_x1 = window.x
+                        window_y1 = window.y
+                        window_width = window_data.width or window.width
+                        window_height = window_data.height or window.height
+                        window_x2 = window_x1 + window_width
+                        window_y2 = window_y1 + window_height
+    
+                        # if windows is set to split, it will be broken across the 
+                        # different walls and omitted when the wall does not exist.
+                        # Otherwise, the windows is applied, in full, on the wall 
+                        # where its center falls
+    
+                        if window_data.split:
+                            if any(
+                                [window_x2 < wall_x1], [window_x1 > wall_x2]
+                                [window_y2 < wall_y1], [window_y1 > wall_y2]): 
+                                    continue
+                            else:
+                                x1 = max(0, window_x1-wall_x1)
+                                y1 = max(0, window_y1-wall_y1)
+                                x2 = min(wall_width, window_x2-wall_x1)
+                                y2 = min(wall_height, window_y2-wall_y1)
+                                w = x2 - x1
+                                h = y2 - y1
+                        else:
+                            window_center = (window_x1 + window_x2)/2, (window_y1 + window_y2)/2,
+                            if (wall_x1 < window_center[0] < wall_x2 and
+                                wall_y1 < window_center[1] < wall_y2):
+                                    x1, y1 = window_x1-wall_x1, window_y1-wall_y1
+                                    w, h = window_width, window_height
+                            else:
+                                continue
+
+                        # Scale windows for frames
+                        orig_w, orig_h = w, h
+                        w, h = e_math.scale_rectangle(w, h, float(window_data.scale))
+                        x1 = x1 + (orig_w-w)/2.
+                        y1 = y1 + (orig_h-h)/2.
+
+                        if window_data.kind == 'door':
+                            name = utils.suffix(wall.name, '-D_%s_%s' % (i, window_data.title))
+                            door = Door(self, name=name, parent=wall)
+                            door.attr['X'] = x1
+                            door.attr['Y'] = y1
+                            door.attr['WIDTH'] = w
+                            door.attr['HEIGHT'] = h
+                            door.attr['CONSTRUCTION'] = window_data.material
+                        else:
+                            name = utils.suffix(wall.name, '-W_%s_%s' % (i, window_data.title))
+                            win = Window(self, name=name, parent=wall)
+                            win.attr['X'] = x1
+                            win.attr['Y'] = y1
+                            win.attr['WIDTH'] = w
+                            win.attr['HEIGHT'] = h
+                            win.attr['GLASS-TYPE'] = window_data.material
+    
+    def rotate_space_polygons(self, degrees):
+
+        '''Rotate all spaces'''
+
+        polygons = [space.polygon for space in self.kinds('SPACE').values()]
+        for polygon in set(polygons):
+            polygon.set_vertices(
+                [e_math.rotate(p[0], p[1], degrees) for p in polygon.vertices])
+
+    def combine_close_vertices(self, tol=1):
+
+        '''Combines space polygon vertices if they are close'''
+
+        def mean(values):
+            return float(sum(values)) / len(values)
+
+        # Floors are done individually
+        for c in self.kinds('FLOOR').values():
+            polygons = set([space.polygon for space in floor.children]) 
+            points = {
+                (polygon, i):point for polygon in polygons
+                    for i, point in enumerate(polygon.points)}
+            
+            # Create groups of points
+            groups = []
+            for key, point in points.items():
+                flag = False
+                for group in groups:
+                    for other_key, other_point in group:
+                        if other_point.distance(point) < tol:
+                            flag = True
+                            group.append((key, point))
+                            break
+                    if flag:
+                        break
+                else:
+                    groups.append([(key, point)])
+
+            # Create map for lookup of new vertices
+            lookup = {}
+            for group in groups:
+                if len(group) > 1:
+                    x, y = [mean(n) for n in zip(*[(p.x, p.y) for _, p in group])]
+                    for (polygon, i), point in group:
+                        lookup[(polygon, i)] = (x, y)
+            
+            # Assign new points if defined, or existing if not
+            for polygon in polygons:
+                polygon.set_vertices(
+                    [lookup.get((polygon, i), point)
+                    for i, point in enumerate(polygon.vertices)]) 
+                polygon.delete_sequential_dupes()
+
+    def split_interior_walls(self, tol=1):
+
+        '''Splits space where it intersects with adjacent space'''
+
+        added = []
+
+        for floor in self.kinds('FLOOR').values():        
+
+            polygons = set([space.polygon for space in floor.children]) 
+
+            points = {
+                (polygon, i):point for polygon in polygons
+                    for i, point in enumerate(polygon.points)}
+
+            lines = {
+                (polygon, i):line for polygon in polygons
+                    for i, line in enumerate(polygon.lines)}
+
+            lookup_move = {}
+            lookup_add = {}
+
+            # find close points
+            for (line_poly, i), line in lines.items():
+                for (point_poly, j), point in points.items():
+                    if (point_poly, j) in lookup_move or line_poly is point_poly:
+                        continue
+                    if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
+                        continue
+                    if point.distance(line) < tol:
+                        p = line.interpolate(line.project(point))
+                        lookup_move[(point_poly, j)] = (p.x, p.y)
+                        lookup_add[(line_poly, i)] = (p.x, p.y)
+
+            # move close points
+            for polygon in polygons:
+                polygon.set_vertices(
+                    [lookup_move.get((polygon, i), point)
+                    for i, point in enumerate(polygon.vertices)]) 
+
+            # add new points along lines
+            for (poly, i), point in sorted(lookup_add.items(), reverse=True):
+                poly.add_verticy(point, i)
+                added.append((floor, (poly, i)))
+
+        return added
+
+    def create_roofs(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
+
+        '''
+        Creates roofs in model
+
+            tol: vertical tolerance for overlapping spaces
+            use_space_poly_tol: when close enough, just use the space poly 
+            ratio_tol: skip when area is very small compared to perimeter 
+
+        '''
+
+        for space in self.kinds('SPACE').values():
+            running_roof_polygon = copy.copy(space.shapely_poly)
+            for other_space in self.kinds('SPACE').values():
+                if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
+                    running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
+
+            if running_roof_polygon.area / space.shapely_poly.area > use_space_poly_tol:
+                roof_polygon_name_list = [space.polygon.name]
+            else:
+                roof_polygon_name_list = []
+
+                if isinstance(running_roof_polygon, MultiPolygon):
+                    roof_shapely_polygon_list = [p for p in running_roof_polygon.geoms]
+                elif isinstance(running_roof_polygon, ShapelyPoly):
+                    roof_shapely_polygon_list = [running_roof_polygon]
+                else:
+                    continue
+
+                deleted_count = 0
+                for i, shapely_polgyon in enumerate(roof_shapely_polygon_list, 1):
+                    name = utils.suffix(space.name, '-Roof_%s poly' % i-deleted_count)
+                    polygon = Polygon(self, name=name)
+                    polygon.set_vertices(list(shapely_polgyon.exterior.coords))
+                    try:                            
+                        polygon.delete_sequential_dupes()
+                    except RegenerateError:
+                        polygon.delete()
+                        deleted_count += 1
+                        continue
+                    if polygon.area()/polygon.perimeter() < ratio_tol:
+                        polygon.delete()
+                        deleted_count += 1
+                        continue
+                    if not polygon.is_ccw():
+                        polygon.reverse()
+                    roof_polygon_name_list.append(name)
+
+            for i, polygon_name in enumerate(roof_polygon_name_list, 1):
+                if (space.z_global() + space.height()) >= 0:
+                    Wall = E_Wall
+                    construction = get_client_construction()['roof']
+                else:
+                    Wall = U_Wall
+                    construction = get_client_construction()['underground_slab']
+                wall = Wall(self, name=utils.suffix(space.name, '-Roof_%s' % i), parent=space)
+                wall.attr['CONSTRUCTION'] = construction
+                wall.attr['LOCATION'] = 'TOP'
+                if polygon_name != space.polygon.name:  
+                    wall.attr['POLYGON'] = polygon_name
+
+    def create_floors(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.10):
+
+        '''
+        Creates floors and overhangs in model
+
+            tol: vertical tolerance for overlapping spaces
+            use_space_poly_tol: when close enough, just use the space poly 
+            ratio_tol: skip when area is very small compared to perimeter 
+        '''
+
+        for space in self.kinds('SPACE').values():
+            running_floor_polygon = copy.copy(space.shapely_poly)
+            for other_space in self.kinds('SPACE').values():
+                if abs(space.z_global() - (other_space.z_global() + other_space.height())) < tol:
+                    running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
+
+            if running_floor_polygon.area / space.shapely_poly.area > use_space_poly_tol:
+                floor_polygon_name_list = [space.polygon.name]
+            else:
+                floor_polygon_name_list = []
+
+                if isinstance(running_floor_polygon, MultiPolygon):
+                    floor_shapely_polygon_list = [p for p in running_floor_polygon.geoms]
+                elif isinstance(running_floor_polygon, ShapelyPoly):
+                    floor_shapely_polygon_list = [running_floor_polygon]
+                else:
+                    continue
+
+                deleted_count = 0
+                for i, shapely_polygon in enumerate(floor_shapely_polygon_list, 1):
+                    name = utils.suffix(space.name, 'FLOOR_%s poly' % i-deleted_count)
+                    polygon = Polygon(self, name=name)
+                    polygon.set_vertices(list(shapely_polygon.exterior.coords))
+                    polygon.mirror_and_reverse()
+                    try:                            
+                        polygon.delete_sequential_dupes()
+                    except RegenerateError:
+                        polygon.delete()
+                        deleted_count += 1
+                        continue
+                    if polygon.area()/polygon.perimeter() < ratio_tol:
+                        polygon.delete()
+                        deleted_count += 1
+                        continue
+                    if not polygon.is_ccw():
+                        polygon.reverse()
+                    floor_polygon_name_list.append(name)
+
+            for i, polygon_name in enumerate(floor_polygon_name_list, 1):
+                if (space.z_global()) <= 0:
+                    Wall = U_Wall
+                    construction = get_client_construction()['underground_slab']
+                else:
+                    Wall = E_Wall
+                    construction = get_client_construction()['overhang']
+                wall = Wall(self, name=utils.suffix(space.name, '-Floor_%s' % i), parent=space)
+                wall.attr['CONSTRUCTION'] = construction
+                wall.attr['LOCATION'] = 'BOTTOM'
+                if polygon_name != space.polygon.name:
+                    wall.attr['POLYGON'] = polygon_name
+
+    def create_ceilngs(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
+
+        '''
+        Creates horizontal interior walls
+
+            tol: vertical tolerance for overlapping spaces
+            use_space_poly_tol: when close enough, just use the space poly 
+            ratio_tol: skip when area is very small compared to perimeter 
+        '''
+
+        for space in self.kinds('SPACE').values():
+            ceiling_polygons = copy.copy(space.shapely_poly)
+            for i, other_space in enumerate(self.kinds('SPACE').values()):
+                if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
+                    ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
+
+                    if isinstance(ceiling_polygon, MultiPolygon):
+                        ceiling_shapely_polygon_list = [p for p in ceiling_polygon.geoms]
+                    elif isinstance(ceiling_polygon, ShapelyPoly):
+                        ceiling_shapely_polygon_list = [ceiling_polygon]
+                    else:
+                        continue
+
+                    if other_space.is_plenum():
+                        construction = get_client_construction()['ceiling']
+                    else:
+                        construction = get_client_construction()['slab']
+
+                    ceiling_polygon_name_list = []
+                    for j, ceiling_shapely_polygon in enumerate(ceiling_shapely_polygon_list):
+                        if (ceiling_shapely_polygon.area / space.shapely_poly.area) > use_space_poly_tol:
+                            ceiling_polygon_name = space.polygon.name
+                        else:
+                            ceiling_polygon_name = utils.suffix(space.name, '-CEILING_%s-%s poly' % (i, j))
+                            polygon = Polygon(self, name=ceiling_polygon_name)
+                            polygon.set_vertices(list(ceiling_shapely_polygon.exterior.coords))
+                            try:                            
+                                polygon.delete_sequential_dupes()
+                            except RegenerateError:
+                                polygon.delete()
+                                continue
+                            if polygon.area()/polygon.perimeter() < ratio_tol:
+                                polygon.delete()
+                                continue
+                            if not polygon.is_ccw():
+                                polygon.reverse()
+                        ceiling_name = utils.suffix(space.name, 'CEILING_%s-%s' % (i, j))
+                        ceiling = I_Wall(self, name=ceiling_name, parent=space)
+                        ceiling.attr['LOCATION'] = 'TOP'
+                        ceiling.attr['NEXT-TO'] = other_space.name
+                        ceiling.attr['POLYGON'] = ceiling_polygon_name
+
+    def create_zones(self):
+
+        '''Creates zones under fake system'''
+
+        system = System(self, '"Dummy System"')
+        system.attr['TYPE'] = 'VAVS' 
+        system.attr['HEAT-SOURCE'] = 'NONE' 
+        system.attr['CHW-LOOP'] = '"DEFAULT-CHW"' 
+
+        for space in self.kinds('SPACE').values():
+            name = utils.suffix(space.name, ' ZONE')
+            zone = Zone(self, name=name, parent=system) 
+            zone.attr['TYPE'] = space.get('ZONE-TYPE') or 'CONDITIONED' 
+            zone.attr['SPACE'] = space.name 
 
 
 class Default(object):
@@ -261,8 +779,8 @@ class Default(object):
         t += '   ..\n'
         return t
 
-
     def delete(self):
+        del self.b.defaults[self.key]
         del self
 
 
@@ -282,6 +800,11 @@ class Parameter(object):
     def write(self):
         return 'PARAMETER\n  %s = %s\n  ..\n' % (self.name, self.value)
 
+    def delete(self):
+        del self.b.parameters[self.name]
+        del self
+
+
 class Object(object):
 
     def __init__(self, b, name=None, kind=None, parent=None):
@@ -293,7 +816,6 @@ class Object(object):
         self.name = name
         self.parent=parent
         self.children = []
-        self.selected = False
 
         if self.parent:
             self.parent.children.append(self)
@@ -304,8 +826,11 @@ class Object(object):
             self.has_name = True
 
     def delete(self):
+        for child in self.children:
+            child.delete()            
         if self.parent:
-            self.parent.children.pop(self)
+            self.parent.children.remove(self)
+        del self.b.objects[self.name]
         del self
 
     def read(self, lines):
@@ -385,11 +910,14 @@ class Object(object):
         return [o for o in self.b.kinds(self.kind).values()
             if o.parent==self.parent]
 
+    
+
+
 class Polygon(Object):
 
-    def __init__ (self, b, name=None, kind='POLYGON'):
+    def __init__ (self, b, name=None, kind='POLYGON', vertices=None):
         self.b = b
-        self.vertices = []
+        self.vertices = vertices or []
         self.shapely_poly = None
         Object.__init__(self, b, name, kind)
 
@@ -443,12 +971,19 @@ class Polygon(Object):
     def area(self):
         return self.shapely_poly.area
 
+    def perimeter(self):
+        return self.shapely_poly.length
+
     def delete_sequential_dupes(self, tol=0.1):
         new = []
         count = len(self.vertices)
         for i in range(count):
             if e_math.distance(self.vertices[i], self.vertices[(i+1)%count]) > tol:
                 new.append(self.vertices[i])
+
+        if len(new) < 3:
+            raise RegenerateError('Cannot Regenerate Polygon')
+
         self.vertices = new
         self.regenerate()
 
@@ -461,11 +996,19 @@ class Polygon(Object):
             for i in range(len(self.vertices))]
 
     def is_ccw(self):
-        return self.shapely_poly.is_ccw()
+        return self.shapely_poly.exterior.is_ccw
 
     def mirror(self):
-        self.vertices = ([[y, x] for x, y in self.vertices])
-        self.regenerate()
+        self.set_vertices([[y, x] for x, y in self.vertices])
+
+    def reverse(self):
+        self.set_vertices(list(reversed(self.vertices)))
+
+    def mirror_and_reverse(self):
+        self.set_vertices([[y, x] for x, y in reversed(self.vertices)])
+
+    def move(self, x, y):
+        self.set_vertices([[x + px, y + py] for px, py in self.vertices])
 
 class Floor(Object):
 
@@ -496,12 +1039,6 @@ class Floor(Object):
 
     def has_plenum(self):
         return (self.plenum_height > 0)
-
-    def delete(self):
-        for space in self.children:
-            space.delete()
-        del self.b.objects[self.name]
-        del self
 
 
 class Space(Object):
@@ -555,6 +1092,7 @@ class Space(Object):
     def polygon(self):
         return self.b.objects[self.attr['POLYGON']]
 
+    @property
     def shapely_poly(self):
         return self.polygon.shapely_poly
 
@@ -569,6 +1107,10 @@ class Space(Object):
 
     def vertices(self):
         return self.polygon.vertices
+        
+    def point_pair_shapely(self, verticy):
+        return (self.polygon.points[verticy-1],
+                self.polygon.points[verticy%self.count_vertices()])
 
     def all_i_walls(self): # include ones for which this is the other space
         return [i_wall for i_wall in self.b.objects['INTERIOR-WALL']
@@ -597,19 +1139,18 @@ class Space(Object):
     def extents(self):
         pass
 
-    def delete(self):
-        for wall in self.e_walls() + self.i_walls() + self.u_walls():
-            wall.delete()
-        del self
-
     def vertical_overlap(self, other):
+        z_min, z_max = self.overlap_heights(other)
+        return z_max - z_min
+
+    def overlap_heights(self, other):
         l1 = self.z_global()
         u1 = l1 + self.height()
         l2 = other.z_global()
         u2 = l2 + other.height()
-        u = min(u1, u2)
-        l = max(l1, l2)
-        return u - l
+        z_max = min(u1, u2)
+        z_min = max(l1, l2)
+        return z_min, z_max
 
     def adjacent(self):
         pass
@@ -649,7 +1190,7 @@ class Wall(Object):
         if 'Y' in self.attr:
             return float(self.attr['Y'])
         elif self.get_side_number():
-            return self.get_vertices()[0][0]
+            return self.get_vertices()[0][1]
         else:
             return self.get('Y')
 
@@ -663,6 +1204,9 @@ class Wall(Object):
 
     def special_horizontal(self):
         return self.get('LOCATION') in ['TOP', 'BOTTOM']
+
+    def is_vertical(self):
+        return self.tilt() == 90
 
     def x_global(self):
         return self.parent.x_global() + self.x() 
@@ -698,13 +1242,16 @@ class Wall(Object):
         elif self.get('WIDTH'):
             return self.get('WIDTH')
         else:
-            e_math.distance(self.get_vertices(self.get_vertices()))
+            return e_math.distance(*self.get_vertices())
 
     def get_side_number(self):
         if 'SPACE-' in self.get('LOCATION'):
             return int(re.findall('(?<=SPACE-V)\d+', self.get('LOCATION'))[0])
         else:
             return None
+
+    def is_regular_wall(self):
+        return bool(self.get_side_number())
 
     def get_vertices(self):
         polygon = self.parent.polygon
@@ -722,23 +1269,57 @@ class Wall(Object):
     def zone_type(self):
         return self.parent.zone_type()
 
-    def angle(self, kind='doe'):
+    def angle(self, cartesian=False):
 
         if self.tilt()%180 == 0:
             return None
 
-        v1, v2 = self.get_vertices()[:2]
-        angle = e_math.get_angle(*self.get_vertices()[:2], cartesian=False)
-        if kind == 'doe':
-            angle = e_math.swap_angle(angle)
-        return angle
+        return e_math.get_angle(*self.get_vertices()[:2], cartesian=cartesian)
 
     def zone(self):
         return self.parent.zone()
 
-    def delete(self):
-        del self
+    def near(self, point, tol):
+        return e_math.line_distance(point, *self.get_vertices()) < tol  
 
+    def midpoint(self):
+        p1, p2 = self.get_vertices()
+        return ((p1[0] + p2[0]) / 2, ((p1[1] +p2[1]) / 2))
+
+    def polygon(self):
+        # This may not always return expected values for BOTTOM walls
+        if self.shape == 'POLYGON':
+            return self.b.objects[self.attr['POLYGON']]
+        elif self.special_horizontal:
+            return self.b.objects[self.parent.attr['POLYGON']]
+
+    def name_parts(self):
+        parts = self.name[1:-1].split('-')
+        assert len(parts) == 3
+        return parts 
+
+    def planar_walls(self, tol_d, tol_a):
+        
+        '''All walls in same plane, given distance and angle tolerances'''
+
+        def x_y_angle(wall):
+            return list(wall.midpoint()) + [wall.angle(True)] 
+
+        walls = []
+
+        x_base, y_base, angle_base = x_y_angle(self)
+
+        for wall in self.b.kinds(self.kind).values():
+            if abs(self.tilt() - wall.tilt()) > 1:
+                continue
+            x_target, y_target, angle_target = x_y_angle(wall)
+            diff_d = dist(x_base, y_base, angle_base, x_target, y_target)
+            diff_a = angle_distance(angle_base, angle_target)
+            if abs(diff_d) < tol_d and abs(diff_a) < tol_a:
+                walls.append(wall)
+
+        return walls
+        
 
 class E_Wall(Wall):
 
@@ -746,6 +1327,13 @@ class E_Wall(Wall):
 
         Wall.__init__(self, b, name, kind, parent)
 
+    def create_window(self, name, x=0, y=0, height=None, width=None):
+        height = height or self.height()
+        width = width or self.width()
+        window = Window(self.b, name, parent=self)
+        for attr, value in [('X', x), ('Y', y), ('HEIGHT', height), ('WIDTH', width)]:
+            window.attr[attr] = value
+        return window
 
     def windows(self):
         return [window for window in self.b.objects['WINDOW']
@@ -755,10 +1343,28 @@ class E_Wall(Wall):
         return [door for door in self.b.objects['DOOR']
             if door.parent.name == self.name]
 
-    def delete(self):
-        for item in self.windows() + self.doors():
-            item.delete()
-        del self
+    def to_uwall(self):
+        
+        def get_new_uwall_name():
+            name_parts = self.name_parts()
+            while 1:
+                name_parts[2] = 'U' + name_parts[2][1:]
+                for suffix in '' + ascii_lowercase:  
+                    name = '"%s"' % '-'.join(name_parts)
+                    if not name in self.b.objects:
+                        return name 
+        
+        uwall = U_Wall(self.b, name=get_new_uwall_name(), parent=self.parent)
+        for name, value in self.attr.items():
+            uwall.attr[name] = value
+
+        # custom map construction chanage
+        if self.attr['CONSTRUCTION'] == get_client_construction()['exterior']:
+            uwall.attr['CONSTRUCTION'] = get_client_construction()['underground']
+        elif self.attr['CONSTRUCTION'] == get_client_construction()['overhang']:
+            uwall.attr['CONSTRUCTION'] = get_client_construction()['underground_slab']
+
+        self.delete()
 
 
 class U_Wall(Wall):
@@ -767,12 +1373,38 @@ class U_Wall(Wall):
 
         Wall.__init__(self, b, name, kind, parent)
 
+    def to_ewall(self):
+        
+        def get_new_ewall_name():
+            name_parts = self.name_parts()
+            while 1:
+                name_parts[2] = 'E' + name_parts[2][1:]
+                for suffix in '' + ascii_lowercase:  
+                    name = '"%s"' % '-'.join(name_parts)
+                    if not name in self.b.objects:
+                        return name 
+        
+        Ewall = E_Wall(self.b, name=get_new_uwall_name(), parent=self.parent)
+        for name, value in self.attr.items():
+            ewall.attr[name] = value
+
+        # custom map construction chanage
+        if self.attr['CONTRUCTION'] == get_client_construction()['underground']:
+            ewall.attr['CONSTRUCTION'] = get_client_construction()['exterior']
+        elif self.attr['CONTRUCTION'] == get_client_construction()['underground_slab']:
+            ewall.attr['CONSTRUCTION'] = get_client_construction()['overhang']
+
+        self.delete()
+
 
 class I_Wall(Wall):
 
     def __init__ (self, b, name=None, kind='INTERIOR-WALL', parent=None):
 
         Wall.__init__(self, b, name, kind, parent)
+
+    def next_to(self):
+        return self.b.kinds('SPACE')[self.get('NEXT-TO')]
 
 
 class Wall_Object(Object):
@@ -823,6 +1455,18 @@ class Window(Wall_Object):
 
         Wall_Object.__init__(self, b, name, kind, parent)
 
+    def reduce(self, factor):
+        
+        # scale window to percent vision
+        x, y, w, h = e_math.scale_move_rectangle(
+            self.attr['X'],
+            self.attr['Y'],
+            self.attr['WIDTH'],
+            self.attr['HEIGHT'],
+            factor)
+
+        for attr, value in [('X', x), ('Y', y), ('WIDTH', w), ('HEIGHT', h)]:
+            self.attr[attr] = value
 
 class Door(Wall_Object):
 
@@ -914,21 +1558,14 @@ class Comparison():
 
         return base
 
-if __name__ == '__main__':
+def identify_candidate_adjacent_walls():
 
-    b1 = Building()
-    b1.load(os.path.join('compare', 'b1.inp'))
-
-    spaces = b1.kinds('SPACE').values()
-    checked = []
-
-    
     # Identify candidate adjacent wall pairs
     wall_pairs = []
     bad_wall_pairs = []
     for space, other_space in b1.space_pairs():
         for i, line in enumerate(space.lines(), 1):
-            if line.distance(other_space.shapely_poly()) > 1:
+            if line.distance(other_space.shapely_poly) > 1:
                 continue
                 # Other space it too far away from this wall
             line_angle = e_math.get_angle(*list(line.coords))
@@ -954,8 +1591,25 @@ if __name__ == '__main__':
     print 'discovered %s bad_wall_pairs' % len(bad_wall_pairs)
     print bad_wall_pairs
 
+if __name__ == '__main__':
+
+    b1 = Building()
+    b1.load(os.path.join('compare', 'b1.inp'))
+    
+    for object in b1.objects:
+        print object
+        for attr in object.attrs:
+            print attr
+
+    b2 = Building()
+    b1.load(os.path.join('compare', 'b1.inp'))
+
+    
+
+
     print "done"
-    #compare = Comparison(b1, b2)
+    compare = Comparison(b1, b2)
+    print compare
     #b1.dump('compare/test1.inp')
     #b2.dump('compare/test2.inp')
     #b3 = compare.combine(resolve=Comparison.LEFT)

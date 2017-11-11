@@ -1,4 +1,4 @@
-import math
+import math, numpy, shapely
 
 def tol(n1, n2, tol=0.01):
     return abs((n1-n2)/n1) < tol
@@ -35,6 +35,15 @@ def get_angle_name(a):
     index = int(round(float(a)/8),0)
     return(directions[index])
 
+def angle(pair_1, pair_2):
+
+    theta_1 = math.atan2(pair_1[1][1]-pair_1[0][1], pair_1[1][0]-pair_1[0][0])
+    theta_2 = math.atan2(pair_2[1][1]-pair_2[0][1], pair_2[1][0]-pair_2[0][0])
+    r = (theta_2 - theta_1) * (180.0 / math.pi)
+    if r < 0:
+        r += 360.0
+    return r
+
 def is_ccw(poly):
     c = 0
     total = 0
@@ -69,6 +78,10 @@ def dist(x, y, a, xt, yt):
         d = abs(A*xt + B*yt + C)/math.sqrt(A**2 + B**2)
     return d
 
+def line_distance(p_target, p1, p2):    
+    a = get_angle(p1, p2, True)
+    return dist(p1[0], p1[1], a, p_target[0], p_target[1])
+    
 
 def pdis(x1, y1, a, xt, yt, tol):
     x2 = math.cos(math.radians(a)) + x1
@@ -87,13 +100,38 @@ def pdis(x1, y1, a, xt, yt, tol):
         print '        %s is more than %s' % (d, tol)
         return False
 
-def findProjectedDistance(a, xb, yb, x1, y1):
-    d = dist(xb, yb, a, x1, y1)
-    h = ((xb-x1)**2 + (yb-y1)**2)**.5
+def components(origin, line_point, point):
+    base_line = shapely.geometry.LineString([origin, line_point])
+    point_line = shapely.geometry.LineString([origin, point])
+    point = shapely.geometry.Point(point)
+    x = base_line.distance(point)
+    y = (point_line.length**2 - x**2)**0.5
+    print x, y
+    
+
+def scale_rectangle(w, h, factor): 
+    a, b, c = 1, (w + h), -((factor - 1) * h * w)
+    correction = -(-b - (b**2.-4.*a*c)**0.5)/(2.*a)
+
+    # h and w swapped purposefully
+    new_w, new_h = -(h - correction), -(w - correction)
+    return new_w, new_h  
+
+def scale_move_rectangle(x, y, w, h, factor):
+    new_w, new_h = scale_rectangle(w, h, factor)
+    new_x = x + (w - new_w) / 2
+    new_y = y + (h - new_h) / 2
+    return new_x, new_y, new_w, new_h
+
+def projected_distance(pb, a, pt):
+    xb, yb = pb
+    xt, yt = pt
+    d = dist(xb, yb, a, xt, yt)
+    h = ((xb-xt)**2 + (yb-yt)**2)**.5
     return (h**2 - d**2)**.5
 
 def rere(p):
-    '''reverses and transposes polygon vertices'''
+    '''Returns a new list ocollection of reverses and transposes polygon vertices'''
     p.reverse()
     p = [[i[1], i[0]] for i in p]
 
@@ -145,6 +183,40 @@ def getParams(s):
     l = [name, p]
     return l
 
+def overlap_split(range, pairs):
 
+    '''Overlaps in a given range, returns [overlaps, not_overlaps]''' 
+
+    pairs = sorted(pairs)
+    min_, max_ = range
+    base = min_
+    overlaps, non_overlaps = [], []
+    
+    for pair in pairs:
+        if pair[0] > base and pair[0] < max_:
+            limit = min(pair[0], max_)
+            non_overlaps.append([base, limit])
+            base = limit
+        if pair[1] > base:
+            limit = min(pair[1], max_)
+            overlaps.append([base, min(pair[1], max_)])
+            base = limit
+    if base < max_:
+        non_overlaps.append([base, max_])
+
+    return overlaps, non_overlaps
+
+def is_close(a, b, tol):
+    return abs(a-b) < tol
+
+def main():
+    range = [0,15]
+    pairs = []
+    o, n = overlap_split(range, pairs)
+    print o
+    print n
+
+if __name__ == '__main__':
+    main()
 
 

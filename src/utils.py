@@ -40,6 +40,12 @@ def unwrap(s):
 def rewrap(s, new_text):
     return wrap(unwrap(s) + new_text)
 
+def suffix(s, new_text):
+    return wrap(unwrap(s) + new_text)
+
+def prefix(s, new_text):
+    return wrap(new_text + unwrap(s))
+
 def outdent(s, count):
     pat = r'^' + ' ' * count
     return re.sub(pat, '', s)

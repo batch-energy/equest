@@ -1,9 +1,8 @@
 from eo import Polygon, I_WALL, E_WALL
 
-def make_verticel_walls(b, spaces=None)
+def make_vertical_walls(b, spaces=None)
     
-    if not spaces:
-        spaces = b1.kinds('SPACE').values()
+    spaces = spaces or b1.kinds('SPACE').values()
 
     checked = []
     space_pairs = []
@@ -56,8 +55,7 @@ def make_verticel_walls(b, spaces=None)
  
 def make_horizontal_internal_walls(b, spaces=None):
 
-    if not spaces:
-        spaces = b.kinds('SPACE').values()
+    spaces = spaces or b1.kinds('SPACE').values()
 
     for space in spaces:
         space_poly = self.poly()

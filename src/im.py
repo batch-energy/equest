@@ -31,7 +31,7 @@ def get_fdf_attribute(attr, line):
 
 class Pdf_File(object):
 
-    def __init__(self, pdf_path, seed=None):
+    def __init__(self, pdf_path):
         self.pdf_path = pdf_path
         self.page_numbers = OrderedDict()
         self.pages = OrderedDict()
@@ -186,7 +186,10 @@ class Pdf_File(object):
     def create_floors(self):
         '''Create floors'''
 
+        print self.spec
+
         for floor_name, spec_attrs in self.spec.items():
+            print floor_name
             floor = eo.Floor(self.b, name=str(floor_name))
             floor.attr['Z'] = self.spec[floor_name]['z']
 
@@ -362,12 +365,28 @@ class Pdf_Polygon(object):
             self.attrs[k] = v
 
 
+def adjust_pdf_x_change(fdf_file):
+    with open(fdf_file, 'r') as fdf:
+        text = fdf.read()
+    
+    text = text.replace('/T (', '/T (')
+    
+    # PDF exchange mopdfications
+    text = re.sub(r'(/\w+) ', r'\1', text)
+    text = text.replace('\n', ' ')
+    text = text.replace('obj <<', 'obj\n<<')
+    text = text.replace('endobj', '\nendobj\n')
+    text = text.replace(' /', '/')
+    with open('temp.fdf', 'w') as f:
+        f.write(text)
+
 def main():
 
     client = utils.choices(ref.clients)
     project_name = os.getcwd().split(os.sep)[-1]
     seed_file = utils.client_seed_file(client)
-    fdf_file = [f for f in os.listdir('.') if f[-4:] == '.fdf'][0]
+    fdf_file = 'Takeoffs.fdf'
+    #adjust_pdf_x_change(fdf_file)
 
     with open(project_name + '.pd2', 'wb') as f:
         f.write(utils.project_pd2_text(project_name))
@@ -382,7 +401,7 @@ def main():
 
     pdf.b.extend(seed_building)
     pdf.b.dump(project_name.lower() + '.inp')
-
+    
     print '\n'.join(pdf.messages)
 
 if __name__ == '__main__':
