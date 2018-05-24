@@ -4,10 +4,11 @@ from e_math import is_close, distance, angle, projected_distance, angle_distance
 from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
 import copy
-from client import get_client_construction
+from client import get_client_construction, get_client_glass
 from string import ascii_lowercase
 import svg_file
 from utils import wrap, unwrap
+import operator
 
 class RegenerateError(Exception):
 
@@ -220,7 +221,7 @@ class Building(object):
                 horiz_space_pairs.append((space, space2))
         return horiz_space_pairs, vert_space_pairs
 
-    def make_walls(self):
+    def make_walls(self, make_ewall_for_bad_space_pairs=True):
 
         '''Make interior walls, then exterior walls where there are no interio ones'''
 
@@ -250,14 +251,18 @@ class Building(object):
                         interior_walls[(space_2.name, j)].append((space_1.name, (z_min, z_max)))
                     else:
                         bad_space_pairs.append([(space_1.name, i), (space_2.name, j)])
-                    
+
+        bad_walls = []
         if bad_space_pairs:
             print '\n  Bad Space Pairs, %s\n' % len(bad_space_pairs)
             for pair in bad_space_pairs:
                 print '    ' + '  -  '.join(['%s : %s ' % (name, i) for (name, i) in pair])
-            print '\n  Exterior wall will be made for these, but they are probably not exterior walls\n'
+                bad_walls +=  pair
+            if make_ewall_for_bad_space_pairs is True:
+                print '\n  Exterior wall will be made for these, but they are probably not exterior walls\n'
+            else:
+                print '\n  No walls will be made for these, but they are probably misaligned interior walls\n'
 
-            raw_input('\n  > Enter to Continue')  
 
         # Create interior walls
         for (space_name, wall_index), adjacents in interior_walls.items():
@@ -290,6 +295,9 @@ class Building(object):
                 adjacents = interior_walls.get((space.name, i), [])
                 pairs = [a[1] for a in adjacents]
                 spans = [s for s in e_math.overlap_split([space_min, space_max], pairs)[1]]
+
+                if (space.name, i) in bad_walls and make_ewall_for_bad_space_pairs is False:
+                    continue
                 
                 for j, (lower, upper) in enumerate(spans, 1):
                     if is_close(lower, upper, 0.1):
@@ -320,11 +328,15 @@ class Building(object):
             for ugw in self.kinds('UNDERGROUND-WALL').values()
             if ugw.tilt() == 180]
         
-        for ewall, ewall_midpoint in ewall_midpoints.items():
-            for ugf in underground_floors:
+        candidates = []
+        for ugf in underground_floors:
+            for ewall, ewall_midpoint in ewall_midpoints.items():
                 if ewall.z_global() < ugf.z_global():
                     if ewall_midpoint.distance(ugf.parent.polygon.shapely_poly) < 1:
-                        ewall.to_uwall()
+                        candidates.append(ewall)
+
+        for ewall in set(candidates):    
+            ewall.to_uwall()
 
     def make_windows(self, svg_path, tol_d=5, tol_a=5):
 
@@ -427,17 +439,14 @@ class Building(object):
                         # where its center falls
     
                         if window_data.split:
-                            if any(
-                                [window_x2 < wall_x1], [window_x1 > wall_x2]
-                                [window_y2 < wall_y1], [window_y1 > wall_y2]): 
-                                    continue
-                            else:
-                                x1 = max(0, window_x1-wall_x1)
-                                y1 = max(0, window_y1-wall_y1)
-                                x2 = min(wall_width, window_x2-wall_x1)
-                                y2 = min(wall_height, window_y2-wall_y1)
-                                w = x2 - x1
-                                h = y2 - y1
+                            x1 = max(0, window_x1-wall_x1)
+                            y1 = max(0, window_y1-wall_y1)
+                            x2 = min(wall_width, window_x2-wall_x1)
+                            y2 = min(wall_height, window_y2-wall_y1)
+                            w = x2 - x1
+                            h = y2 - y1
+                            if w < 0.25 or h < 0.25:
+                                continue
                         else:
                             window_center = (window_x1 + window_x2)/2, (window_y1 + window_y2)/2,
                             if (wall_x1 < window_center[0] < wall_x2 and
@@ -454,7 +463,8 @@ class Building(object):
                         y1 = y1 + (orig_h-h)/2.
 
                         if window_data.kind == 'door':
-                            name = utils.suffix(wall.name, '-D_%s_%s' % (i, window_data.title))
+                            template = '-D_%s_{number}' % window_data.title
+                            name = wall.find_next_child_name(template)
                             door = Door(self, name=name, parent=wall)
                             door.attr['X'] = x1
                             door.attr['Y'] = y1
@@ -462,7 +472,9 @@ class Building(object):
                             door.attr['HEIGHT'] = h
                             door.attr['CONSTRUCTION'] = window_data.material
                         else:
-                            name = utils.suffix(wall.name, '-W_%s_%s' % (i, window_data.title))
+                            template = '-W_%s_{number}' % window_data.title
+                            name = wall.find_next_child_name(template)
+                            #name = utils.suffix(wall.name, '-W_%s_%s' % (i, window_data.title))
                             win = Window(self, name=name, parent=wall)
                             win.attr['X'] = x1
                             win.attr['Y'] = y1
@@ -479,15 +491,78 @@ class Building(object):
             polygon.set_vertices(
                 [e_math.rotate(p[0], p[1], degrees) for p in polygon.vertices])
 
-    def combine_close_vertices(self, tol=1):
+    def combine_close_vertices(self, spaces=None, tol=1):
 
-        '''Combines space polygon vertices if they are close'''
+        '''Combines polygon vertices for provided spaces'''
+
+        def mean(values):
+            return float(sum(values)) / len(values)
+
+        # must add spaces by sorted floors to assign group membership
+        points = OrderedDict()
+        for floor in self.sorted_floors():
+            for space in floor.children:
+                if spaces is not None and not space in spaces:
+                    continue
+                for i, point in enumerate(space.polygon.points):
+                    points[(space, i)] = point
+
+        # Create groups of points
+        groups = []
+        for key, point in points.items():
+            space, verticy = key
+            flag = False
+            for group in groups:
+                for other_key, other_point in group:
+                    other_space, other_verticy = other_key
+                    if other_point.distance(point) < tol:
+                        if space.polygon is other_space.polygon or \
+                                space.vertical_overlap(other_space) > 1:
+                            flag = True
+                            group.append((key, point))
+                            break
+                if flag:
+                    # inner loop was broken
+                    break
+            else:
+                # inner loop not broken, make new group
+                groups.append([(key, point)])
+
+        # Create map for lookup of new vertices
+        lookup = {}
+        for group in groups:
+            if len(group) > 1:
+                x, y = [mean(n) for n in zip(*[(p.x, p.y) for _, p in group])]
+                for (space, i), point in group:
+                    lookup[(space, i)] = (x, y)
+        
+        # Assign new points if defined, or existing if not
+        polygons = []  
+        for space in self.kinds('SPACE').values():
+
+            # do not adjust the same polygons more than once
+            if space.polygon in polygons:
+                continue
+            else:
+                polygons.append(space.polygon)
+
+            space.polygon.set_vertices(
+                [lookup.get((space, i), point)
+                for i, point in enumerate(space.polygon.vertices)]) 
+            space.polygon.delete_sequential_dupes()
+
+    def combine_close_vertices_within_floor(self, tol=1):
+
+        '''Combines space polygon vertices within a floor if they are close'''
+
+        # this is faster because the loop is tighter, (per floor), reducing
+        # comparisons substantially
 
         def mean(values):
             return float(sum(values)) / len(values)
 
         # Floors are done individually
-        for c in self.kinds('FLOOR').values():
+        for floor in self.kinds('FLOOR').values():
             polygons = set([space.polygon for space in floor.children]) 
             points = {
                 (polygon, i):point for polygon in polygons
@@ -523,6 +598,42 @@ class Building(object):
                     for i, point in enumerate(polygon.vertices)]) 
                 polygon.delete_sequential_dupes()
 
+    def split_interior_walls_spanned(self, tol=1, space_pairs=None):
+
+        '''
+        Splits space where it intersects with adjacent space across multiple floors
+        
+        space pairs can be provided, if known. for each pair, the first contains the
+        lines, and the second contains the points which are along that line
+        
+        '''
+
+        if not space_pairs:
+            _, pairs = self.space_pairs()
+        else:
+            pairs = space_pairs
+        
+        for space, other_space in pairs:
+            print space, other_space
+            for i, line in enumerate(space.polygon.lines):
+                for j, point in enumerate(other_space.polygon.points):
+                    
+                    # Line and point are distant 
+                    if point.distance(line) > tol:
+                        continue
+
+                    # Point is on line endpoint 
+                    if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
+                        continue
+
+                    p = line.interpolate(line.project(point))
+
+                    space.polygon.add_verticy(p, i) # plus because we're looping through the lines 
+                    other_space.polygon.set_verticy(p, j)
+
+                    #space.polygon.delete_sequential_dupes() 
+                    other_space.polygon.delete_sequential_dupes()
+
     def split_interior_walls(self, tol=1):
 
         '''Splits space where it intersects with adjacent space'''
@@ -544,7 +655,7 @@ class Building(object):
             lookup_move = {}
             lookup_add = {}
 
-            # find close points
+            # finds at most one point near line
             for (line_poly, i), line in lines.items():
                 for (point_poly, j), point in points.items():
                     if (point_poly, j) in lookup_move or line_poly is point_poly:
@@ -600,7 +711,7 @@ class Building(object):
 
                 deleted_count = 0
                 for i, shapely_polgyon in enumerate(roof_shapely_polygon_list, 1):
-                    name = utils.suffix(space.name, '-Roof_%s poly' % i-deleted_count)
+                    name = utils.suffix(space.name, '-Roof_%s poly' % (i-deleted_count))
                     polygon = Polygon(self, name=name)
                     polygon.set_vertices(list(shapely_polgyon.exterior.coords))
                     try:                            
@@ -625,12 +736,12 @@ class Building(object):
                     Wall = U_Wall
                     construction = get_client_construction()['underground_slab']
                 wall = Wall(self, name=utils.suffix(space.name, '-Roof_%s' % i), parent=space)
-                wall.attr['CONSTRUCTION'] = construction
+                wall.attr['CONSTRUCTION'] = get_client_construction()['roof']
                 wall.attr['LOCATION'] = 'TOP'
                 if polygon_name != space.polygon.name:  
                     wall.attr['POLYGON'] = polygon_name
 
-    def create_floors(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.10):
+    def create_floors(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.10, z=0):
 
         '''
         Creates floors and overhangs in model
@@ -660,7 +771,7 @@ class Building(object):
 
                 deleted_count = 0
                 for i, shapely_polygon in enumerate(floor_shapely_polygon_list, 1):
-                    name = utils.suffix(space.name, 'FLOOR_%s poly' % i-deleted_count)
+                    name = utils.suffix(space.name, 'FLOOR_%s poly' % (i-deleted_count))
                     polygon = Polygon(self, name=name)
                     polygon.set_vertices(list(shapely_polygon.exterior.coords))
                     polygon.mirror_and_reverse()
@@ -679,7 +790,7 @@ class Building(object):
                     floor_polygon_name_list.append(name)
 
             for i, polygon_name in enumerate(floor_polygon_name_list, 1):
-                if (space.z_global()) <= 0:
+                if (space.z_global()) <= z + 1:
                     Wall = U_Wall
                     construction = get_client_construction()['underground_slab']
                 else:
@@ -691,7 +802,7 @@ class Building(object):
                 if polygon_name != space.polygon.name:
                     wall.attr['POLYGON'] = polygon_name
 
-    def create_ceilngs(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
+    def create_ceilings(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
 
         '''
         Creates horizontal interior walls
@@ -737,7 +848,7 @@ class Building(object):
                                 continue
                             if not polygon.is_ccw():
                                 polygon.reverse()
-                        ceiling_name = utils.suffix(space.name, 'CEILING_%s-%s' % (i, j))
+                        ceiling_name = utils.suffix(space.name, '-CEILING_%s-%s' % (i, j))
                         ceiling = I_Wall(self, name=ceiling_name, parent=space)
                         ceiling.attr['LOCATION'] = 'TOP'
                         ceiling.attr['NEXT-TO'] = other_space.name
@@ -753,10 +864,7 @@ class Building(object):
         system.attr['CHW-LOOP'] = '"DEFAULT-CHW"' 
 
         for space in self.kinds('SPACE').values():
-            name = utils.suffix(space.name, ' ZONE')
-            zone = Zone(self, name=name, parent=system) 
-            zone.attr['TYPE'] = space.get('ZONE-TYPE') or 'CONDITIONED' 
-            zone.attr['SPACE'] = space.name 
+            space.make_zone()
 
 
 class Default(object):
@@ -944,6 +1052,8 @@ class Polygon(Object):
         self.vertices = vertices or []
         self.shapely_poly = None
         Object.__init__(self, b, name, kind)
+        if self.vertices:
+            self.regenerate()
 
     @property
     def attr(self):
@@ -973,11 +1083,19 @@ class Polygon(Object):
         self.regenerate()
 
     def delete_verticy(self, v):
-        self.vertices.pop(v+1)
+        self.vertices.pop(v-1)
         self.regenerate()
 
     def add_verticy(self, point, verticy):
+        if isinstance(point, Point):
+            point = point.x, point.y
         self.vertices.insert(verticy+1, point)
+        self.regenerate()
+
+    def set_verticy(self, point, verticy):
+        if isinstance(point, Point):
+            point = point.x, point.y
+        self.vertices[verticy] = point
         self.regenerate()
 
     def read(self, lines):
@@ -999,17 +1117,16 @@ class Polygon(Object):
         return self.shapely_poly.length
 
     def delete_sequential_dupes(self, tol=0.1):
+
         new = []
-        count = len(self.vertices)
-        for i in range(count):
-            if e_math.distance(self.vertices[i], self.vertices[(i+1)%count]) > tol:
-                new.append(self.vertices[i])
+        for pair in self.sequential_vertices_list():
+            if e_math.distance(*pair) > tol:
+                new.append(pair[0])
 
         if len(new) < 3:
             raise RegenerateError('Cannot Regenerate Polygon')
 
-        self.vertices = new
-        self.regenerate()
+        self.set_vertices(new)
 
     def get_vertices(self, v):
         vertices = self.vertices + [self.vertices[0]]
@@ -1374,7 +1491,7 @@ class Wall(Object):
             return self.b.objects[self.parent.attr['POLYGON']]
 
     def name_parts(self):
-        parts = self.name[1:-1].split('-')
+        parts = unwrap(self.name).split('-')
         assert len(parts) == 3
         return parts 
 
@@ -1423,13 +1540,14 @@ class E_Wall(Wall):
         return [door for door in self.b.objects['DOOR']
             if door.parent.name == self.name]
 
-    def to_uwall(self):
+    def to_uwall(self, split=None):
         
         def get_new_uwall_name():
             name_parts = self.name_parts()
             while 1:
                 name_parts[2] = 'U' + name_parts[2][1:]
-                for suffix in '' + ascii_lowercase:  
+                for suffix in (' ' + ascii_lowercase):  
+                    name_parts[2] += suffix.strip()
                     name = '"%s"' % '-'.join(name_parts)
                     if not name in self.b.objects:
                         return name 
@@ -1439,13 +1557,36 @@ class E_Wall(Wall):
             uwall.attr[name] = value
 
         # custom map construction chanage
-        if self.attr['CONSTRUCTION'] == get_client_construction()['exterior']:
-            uwall.attr['CONSTRUCTION'] = get_client_construction()['underground']
-        elif self.attr['CONSTRUCTION'] == get_client_construction()['overhang']:
-            uwall.attr['CONSTRUCTION'] = get_client_construction()['underground_slab']
+        uwall.attr['CONSTRUCTION'] = get_client_construction()['underground']
 
-        self.delete()
+        if split:
+            self.attr['HEIGHT'] = self.height() - split
+            uwall.attr['HEIGHT'] = split
+            self.attr['Z'] = split
+        else:
+            self.delete()
 
+    def to_uslab(self, delete=True):
+
+        '''Like to_uwall, but for overhang|roof >> slab conversion'''
+
+        uwall = U_Wall(self.b, name=self.name[:-1] + '_1"', parent=self.parent)
+        for name, value in self.attr.items():
+            uwall.attr[name] = value
+        uwall.attr['CONSTRUCTION'] = get_client_construction()['underground_slab']
+
+        if delete:
+            self.delete()
+
+    def find_next_child_name(self, template):
+        i = 1
+        while True:
+            name = wrap(unwrap(self.name) + template.format(number=i))
+            if name in self.b.objects:
+                i += 1
+            else:
+                print name
+                return name
 
 class U_Wall(Wall):
 
@@ -1453,28 +1594,31 @@ class U_Wall(Wall):
 
         Wall.__init__(self, b, name, kind, parent)
 
-    def to_ewall(self):
+    def to_ewall(self, split=None):
         
         def get_new_ewall_name():
             name_parts = self.name_parts()
             while 1:
                 name_parts[2] = 'E' + name_parts[2][1:]
-                for suffix in '' + ascii_lowercase:  
+                for suffix in ' ' + ascii_lowercase:  
+                    name_parts[2] += suffix.strip()
                     name = '"%s"' % '-'.join(name_parts)
                     if not name in self.b.objects:
                         return name 
         
-        Ewall = E_Wall(self.b, name=get_new_uwall_name(), parent=self.parent)
+        ewall = E_Wall(self.b, name=get_new_ewall_name(), parent=self.parent)
         for name, value in self.attr.items():
             ewall.attr[name] = value
 
         # custom map construction chanage
-        if self.attr['CONTRUCTION'] == get_client_construction()['underground']:
-            ewall.attr['CONSTRUCTION'] = get_client_construction()['exterior']
-        elif self.attr['CONTRUCTION'] == get_client_construction()['underground_slab']:
-            ewall.attr['CONSTRUCTION'] = get_client_construction()['overhang']
+        ewall.attr['CONSTRUCTION'] = get_client_construction()['exterior']
 
-        self.delete()
+        if split:
+            ewall.attr['HEIGHT'] = self.height() - split
+            self.attr['HEIGHT'] = split
+            ewall.attr['Z'] = split
+        else:
+            self.delete()
 
 
 class I_Wall(Wall):

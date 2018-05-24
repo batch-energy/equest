@@ -3,7 +3,7 @@ import os, utils, textwrap, re
 def last_split_point(s, max):
     split_point = 0
     for i in range(max):
-        if s[i] != ' ':
+        if s[i] not in ' ,':
             continue
         elif s[:i].count('"')%2:
             continue
@@ -14,6 +14,7 @@ def last_split_point(s, max):
         else:
             split_point = i
     if not split_point:
+        print s
         raise Exception('Could not find split point')
     else:
         return split_point
