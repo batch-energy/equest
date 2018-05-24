@@ -32,7 +32,7 @@ def get_angle(p1, p2, cartesian=False):
 def get_angle_name(a):
     directions = ['North', 'North West', 'West', 'South West', 'South',
         'South East', 'East', 'North East', 'North']
-    index = int(round(float(a)/8),0)
+    index = int(round(float(a)/8,0))
     return(directions[index])
 
 def angle(pair_1, pair_2):
