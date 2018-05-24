@@ -73,6 +73,20 @@ class Building(object):
         with open(fn, 'w') as f:
             f.write(t)
 
+    def get_objects(self, *names):
+
+        '''Given a list of object names, return the objects, tolerates no quotes'''
+
+        objects = []
+        for name in names:
+            if name in self.objects:
+                objects.append(self.objects[name])
+            elif wrap(name) in self.objects:
+                objects.append(self.objects[wrap(name)])
+            else:
+                raise '%s not found' % name
+        return objects        
+
     def __clean_file(self, text):
         return '\n'.join([l.strip() for l in text.split('\n')
             if l.strip() and not l.strip()[0] == '$'])
@@ -172,6 +186,12 @@ class Building(object):
         self.objects.update(other.objects)
         self.defaults.update(other.defaults)
         self.parameters.update(other.parameters)
+
+    def sorted_floors(self):
+
+        '''Floors in ascenting z'''
+        return [sf[1] for sf in sorted([(f.z(), f)
+            for f in self.kinds('FLOOR').values()])]
 
     def space_pairs(self, tol=0.1):
 
@@ -848,6 +868,10 @@ class Object(object):
         child.parent = self
         self.children.append(child)
 
+    def inherit(self, other):
+        for name, value in other.attr.items():
+            self.attr[name] = value
+
     def write(self):
 
         t = ''
@@ -1037,9 +1061,47 @@ class Floor(Object):
     def plenum_height(self):
         return self.attr.get('FLOOR-HEIGHT') - self.attr.get('SPACE-HEIGHT')
 
+    def height(self): 
+        return self.attr.get('FLOOR-HEIGHT')
+    
+
     def has_plenum(self):
         return (self.plenum_height > 0)
 
+    def duplicate(self, name, z):
+        
+        '''Duplicates Floor and all child elements, with new z and name'''
+
+        old_replace = '"' + unwrap(self.name) + '-'
+        new_replace = '"' + unwrap(name) + '-'
+        new_floor = Floor(self.b, name=name, kind='FLOOR')
+        new_floor.inherit(self)
+        new_floor.attr['Z'] = z
+        for space in self.children:
+            new_space_name = space.name.replace(old_replace, new_replace)
+            new_space = Space(self.b, new_space_name, 'SPACE', parent=new_floor)
+            new_space.inherit(space)
+            new_space.make_zone()
+            for wall in space.children:
+                new_wall_name = wall.name.replace(old_replace, new_replace)
+                if wall.kind == 'EXTERIOR-WALL':
+                    new_wall = E_Wall(self.b, new_wall_name, 'EXTERIOR-WALL', parent=new_space)
+                elif wall.kind == 'INTERIOR-WALL':
+                    new_wall = I_Wall(self.b, new_wall_name, 'INTERIOR-WALL', parent=new_space)
+                elif wall.kind == 'UNDERGROUND-WALL':
+                    new_wall = U_Wall(self.b, new_wall_name, 'UNDERGROUND-WALL', parent=new_space)
+                new_wall.inherit(wall)
+                if 'NEXT-TO' in new_wall.attr:
+                     new_wall.attr['NEXT-TO'] = new_wall.attr['NEXT-TO'].replace(old_replace, new_replace) 
+                for wall_element in wall.children:
+                    new_wall_element_name = wall_element.name.replace(old_replace, new_replace)
+                    if wall_element.kind == 'WINDOW':
+                        new_wall_element = Window(self.b, new_wall_element_name, 'WINDOW', parent=new_wall)
+                    elif wall_element.kind == 'DOOR':
+                        new_wall_element = Door(self.b, new_wall_element_name, 'DOOR', parent=new_wall)
+                    new_wall_element.inherit(wall_element)
+
+        return new_floor
 
 class Space(Object):
 
@@ -1137,7 +1199,7 @@ class Space(Object):
         return k
 
     def extents(self):
-        pass
+        return self.z_global(), self.z_global() + self.height()
 
     def vertical_overlap(self, other):
         z_min, z_max = self.overlap_heights(other)
@@ -1162,6 +1224,21 @@ class Space(Object):
 
     def system(self):
         return self.zone().system()
+
+    def name_parts(self):
+        parts = unwrap(self.name).split('-')
+        assert len(parts) == 2
+        return parts 
+
+    def make_zone(self, system=None):
+
+        if system == None:
+            system = self.b.objects['"Dummy System"']
+
+        name = utils.suffix(self.name, ' ZONE')
+        zone = Zone(self.b, name=name, parent=system) 
+        zone.attr['TYPE'] = self.get('ZONE-TYPE') or 'CONDITIONED' 
+        zone.attr['SPACE'] = self.name 
 
 
 class Wall(Object):
@@ -1257,6 +1334,9 @@ class Wall(Object):
         polygon = self.parent.polygon
         side_number = self.get_side_number()
         return polygon.get_vertices(side_number)
+
+    def line(self):
+        return self.parent.polygon.lines[self.get_side_number()-1]
 
     def area(self):
         if self.shape == 'POLYGON':

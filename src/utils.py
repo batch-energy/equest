@@ -67,7 +67,18 @@ def dedupe(l):
         else:
             i += 1 
 
+def overlap(bounds, bound_list, tol=-0.1):
 
+    '''
+    True if bounds overlap any in bounds list
+
+      Positive tol is more permissive to membership,
+      Negative tol is more restrictive to membership
+    '''
+    
+    lower, upper = sorted(bounds)
+    return any(upper > (l + tol) and lower < (u - tol)
+        for l, u in [sorted(p) for p in bound_list])
 
 def src_dir():
     return os.path.dirname(__file__)
