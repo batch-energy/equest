@@ -21,15 +21,26 @@ def last_split_point(s, max):
 
 def splitter(s, max):
 
+    # the text below indicate text which should be forced to a new line
+    # this solution is a little awkward
+    def known_new_lines(s):
+        new_s = ''
+        for i in range(len(s)):
+            if any(s[i:i+len(sub)] == sub for sub in [' case ', '{switch', ' default', ' endswitch}']):
+                new_s += '\n'
+            new_s += s[i]
+        return new_s.splitlines()
+
     lines = []
-    remaining = s
+    for s in known_new_lines(s):
+        remaining = s
+        while len(remaining) > max:
+            new_split_point = last_split_point(remaining, max)
+            lines.append(remaining[:new_split_point])
+            remaining = remaining[new_split_point:]
 
-    while len(remaining) > max:
-        new_split_point = last_split_point(remaining, max)
-        lines.append(remaining[:new_split_point])
-        remaining = remaining[new_split_point:]
+        lines.append(remaining)
 
-    lines.append(remaining)
     return '\n'.join(lines)
 
 def wrap(s):
