@@ -313,6 +313,13 @@ class Building(object):
                     e.attr['LOCATION'] = 'SPACE-V%s' % (i)
                     e.attr['CONSTRUCTION'] = construction['exterior']
 
+    def remove_walls(self):
+        for name in [wall for wall in self.kinds('INTERIOR-WALL').keys() \
+                                         + self.kinds('EXTERIOR-WALL').keys() \
+                                         + self.kinds('UNDERGROUND-WALL').keys() ]:
+            self.objects[name].delete()
+
+
     def apply_grade(self, default=0, gradelines=None):
         gradelines = gradelines or []
     
