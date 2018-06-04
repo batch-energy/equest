@@ -1593,7 +1593,6 @@ class E_Wall(Wall):
             if name in self.b.objects:
                 i += 1
             else:
-                print name
                 return name
 
 class U_Wall(Wall):
