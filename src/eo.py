@@ -414,7 +414,8 @@ class Building(object):
                 for wall in reference_wall.planar_walls(tol_d=tol_d, tol_a=tol_a):
                     w_p1, w_p2 = wall.get_vertices()
 
-                    origin_shift = projected_distance(ref_p1, reference_wall.angle(), w_p1)
+                    origin_shift = distance(ref_p1, w_p1)
+
                     if distance(w_p1, ref_p2) > distance(w_p2, ref_p1):
                          origin_shift = -origin_shift
     
