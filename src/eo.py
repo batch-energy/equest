@@ -1637,6 +1637,9 @@ class I_Wall(Wall):
     def next_to(self):
         return self.b.kinds('SPACE')[self.get('NEXT-TO')]
 
+    def parents(self):
+        return [self.parent, self.next_to()]
+
 
 class Wall_Object(Object):
 
