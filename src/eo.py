@@ -395,7 +395,7 @@ class Building(object):
     
         for color in sorted(svg.color_ids()):
             if not color in color_map:
-                raise Exception('Color %s defined' % color)
+                raise Exception('Color %s not defined' % color)
     
         for projection in svg.projections:
 
