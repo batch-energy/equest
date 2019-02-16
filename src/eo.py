@@ -408,7 +408,7 @@ class Building(object):
             for reference_wall_name in projection.walls:
 
                 try:
-                    reference_wall = self.objects.get(wrap(reference_wall_name))
+                    reference_wall = self.objects[wrap(reference_wall_name)]
                 except KeyError as e:
                     print 'Wall %s not found' % reference_wall_name
                     raise
