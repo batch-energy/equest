@@ -610,6 +610,23 @@ class Building(object):
                     for i, point in enumerate(polygon.vertices)]) 
                 polygon.delete_sequential_dupes()
 
+    def combine_close_vertices_to_space(self, space, floors, tol=0.5):
+
+        '''Aligns polygons on floors to specific space'''
+
+        floor_polygons = set([s.polygon
+            for f in floors for s in f.children if s is not space])
+
+        for floor_polygon in floor_polygons:
+
+            if floor_polygon.shapely_poly.distance(space.shapely_poly) > tol:
+                continue
+
+            for i, floor_point in enumerate(floor_polygon.points):
+                for space_point in space.points():
+                    if floor_point.distance(space_point) < tol:
+                         floor_polygon.set_verticy(space_point, i)
+
     def split_interior_walls_spanned(self, tol=1, space_pairs=None):
 
         '''
