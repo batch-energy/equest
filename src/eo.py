@@ -503,7 +503,7 @@ class Building(object):
             polygon.set_vertices(
                 [e_math.rotate(p[0], p[1], degrees) for p in polygon.vertices])
 
-    def combine_close_vertices(self, spaces=None, tol=1):
+    def combine_close_vertices(self, spaces=None, tol=0.5):
 
         '''Combines polygon vertices for provided spaces'''
 
