@@ -895,6 +895,71 @@ class Building(object):
         for space in self.kinds('SPACE').values():
             space.make_zone()
 
+    def remove_vertical_interior_walls_for_spaces_with_no_windows(self):
+
+        '''
+        Remove interior walls where teh plenum and associate zones for spaces with no
+        exterior walls, then delete walls, roofs and floors
+        recreate walls and recreate them. Walls must be created
+        first, but they are removed and recreated in this process.
+        '''
+
+        delete_i_walls = []
+        for name, i_wall in self.kinds('INTERIOR-WALL').items():
+            parent, next_to = i_wall.parents()
+
+            if not i_wall.is_vertical():
+                continue
+
+            windows = []
+            for space in i_wall.parents():
+                for e_wall in space.e_walls():
+                    windows += e_wall.windows()
+
+            if not windows:
+                delete_i_walls.append(name)
+
+        for name in delete_i_walls:
+            self.objects[name].delete()
+
+    def remove_plenum_for_spaces_with_no_exterior_walls(self):
+
+        '''
+        Remove plenum and associate zones for spaces with no
+        exterior walls, then delete walls, roofs and floors
+        recreate walls and recreate them. Walls must be created
+        first, but they are removed and recreated in this process.
+        '''
+
+        # Mark deletes, adjust sibling space height
+        delete_space_names = []
+        delete_zone_names = []
+        for name, space in self.kinds('SPACE').items():
+            if space.is_plenum() and len(space.e_walls()) == 0:
+                delete_space_names.append(name)
+                delete_zone_names.append(space.zone().name)
+                adjust_space = self.objects[name.replace('_P', '')]
+                adjust_space.attr['HEIGHT'] = adjust_space.height() + space.height()
+
+        # Delete spcaes and zones
+        for name in delete_space_names:
+            self.objects[name].delete()
+        for name in delete_zone_names:
+            self.objects[name].delete()
+
+        # Delete all walls and start over
+        delete_names = []
+        for kind in 'EXTERIOR-WALL', 'INTERIOR-WALL', 'UNDERGROUND-WALL':
+            for name in self.kinds(kind):
+                delete_names.append(name)
+        for name in delete_names:
+            self.objects[name].delete()
+
+        # Recreate Walls
+        self.make_walls()
+        self.create_roofs()
+        self.create_floors()
+        self.create_ceilings()
 
 class Default(object):
 
@@ -1386,6 +1451,8 @@ class Space(Object):
         zone.attr['TYPE'] = self.get('ZONE-TYPE') or 'CONDITIONED' 
         zone.attr['SPACE'] = self.name 
 
+    def has_windows(self):
+        return any([e.has_windows() for e in self.e_walls()])
 
 class Wall(Object):
 
@@ -1616,6 +1683,12 @@ class E_Wall(Wall):
             else:
                 return name
 
+    def windows(self):
+        return [c for c in self.children if c.kind=='WINDOW']
+
+    def has_windows(self):
+        return bool(self.windows())
+
 class U_Wall(Wall):
 
     def __init__ (self, b, name=None, kind='UNDERGROUND-WALL', parent=None):
@@ -1812,6 +1885,16 @@ class Comparison():
                 base.defaults[key].attr.update(default.attr)
 
         return base
+
+def merge(base, other):
+
+    for name, object in other.objects.items():
+        if not name in base.objects:
+            base.objects[name] = object
+
+    for key, default in other.defaults.items():
+        if not key in base.defaults:
+            base.defaults[key] = default
 
 def identify_candidate_adjacent_walls():
 
