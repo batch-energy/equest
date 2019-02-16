@@ -221,7 +221,7 @@ class Building(object):
                 horiz_space_pairs.append((space, space2))
         return horiz_space_pairs, vert_space_pairs
 
-    def make_walls(self, make_ewall_for_bad_space_pairs=True):
+    def make_walls(self, make_ewall_for_bad_space_pairs=True, short_iwall_names=False):
 
         '''Make interior walls, then exterior walls where there are no interio ones'''
 
@@ -266,12 +266,16 @@ class Building(object):
 
         # Create interior walls
         for (space_name, wall_index), adjacents in interior_walls.items():
-            for other_space_name, (lower, upper) in adjacents:
+            for i, (other_space_name, (lower, upper)) in enumerate(adjacents):
                 if space_name < other_space_name:
                     continue
                 space = self.objects[space_name]
                 other_space = self.objects[other_space_name]
-                name = space.name[:-1] + '-I%s_%s"' % (wall_index, other_space_name[1:-1].split('-')[1])
+                name = space.name[:-1] + '-I%s' % (wall_index)
+                if short_iwall_names:
+                    name = name + '_%s"' % i
+                else:
+                    name = name + '_%s"' % (other_space_name[1:-1].split('-')[1])
                 space_min = space.z_global()
                 space_max = space_min + space.height()
                 i = I_Wall(self, name=name, parent=space)
