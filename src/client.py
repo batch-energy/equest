@@ -5,6 +5,8 @@ def get_client():
         return 'TNZ'
     elif 'seed_dmi.inp' in os.listdir('.'):
         return 'DMI'
+    elif 'seed_smma.inp' in os.listdir('.'):
+        return 'SMMA'
     else:
         return None
 
