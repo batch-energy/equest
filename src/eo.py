@@ -770,7 +770,7 @@ class Building(object):
                 if polygon_name != space.polygon.name:  
                     wall.attr['POLYGON'] = polygon_name
 
-    def create_floors(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.10, z=0):
+    def create_floors(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.10, z=0, spaces=None):
 
         '''
         Creates floors and overhangs in model
@@ -780,7 +780,7 @@ class Building(object):
             ratio_tol: skip when area is very small compared to perimeter 
         '''
 
-        for space in self.kinds('SPACE').values():
+        for space in spaces or self.kinds('SPACE').values():
             running_floor_polygon = copy.copy(space.shapely_poly)
             for other_space in self.kinds('SPACE').values():
                 if abs(space.z_global() - (other_space.z_global() + other_space.height())) < tol:
