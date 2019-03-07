@@ -368,9 +368,9 @@ class Pdf_Polygon(object):
 def adjust_pdf_x_change(fdf_file):
     with open(fdf_file, 'r') as fdf:
         text = fdf.read()
-    
+
     text = text.replace('/T (', '/T (')
-    
+
     # PDF exchange mopdfications
     text = re.sub(r'(/\w+) ', r'\1', text)
     text = text.replace('\n', ' ')
@@ -401,7 +401,7 @@ def main():
 
     pdf.b.extend(seed_building)
     pdf.b.dump(project_name.lower() + '.inp')
-    
+
     print '\n'.join(pdf.messages)
 
 if __name__ == '__main__':

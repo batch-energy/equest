@@ -44,7 +44,7 @@ def splitter(s, max):
     return '\n'.join(lines)
 
 def wrap(s):
-    return '"' + s + '"'    
+    return '"' + s + '"'
 
 def unwrap(s):
     return s[1:-1]
@@ -65,7 +65,7 @@ def outdent(s, count):
 def merge_dicts(x, y):
     z = y.copy()
     z.update(x)
-    return z    
+    return z
 
 def dedupe(l):
     while l[0] == l[-1]:
@@ -77,7 +77,7 @@ def dedupe(l):
             del l[i]
             n -= 1
         else:
-            i += 1 
+            i += 1
 
 def overlap(bounds, bound_list, tol=-0.1):
 
@@ -87,7 +87,7 @@ def overlap(bounds, bound_list, tol=-0.1):
       Positive tol is more permissive to membership,
       Negative tol is more restrictive to membership
     '''
-    
+
     lower, upper = sorted(bounds)
     return any(upper > (l + tol) and lower < (u - tol)
         for l, u in [sorted(p) for p in bound_list])
@@ -125,4 +125,3 @@ def is_number(s):
         return True
     except ValueError:
         return False
-        

@@ -78,10 +78,10 @@ def dist(x, y, a, xt, yt):
         d = abs(A*xt + B*yt + C)/math.sqrt(A**2 + B**2)
     return d
 
-def line_distance(p_target, p1, p2):    
+def line_distance(p_target, p1, p2):
     a = get_angle(p1, p2, True)
     return dist(p1[0], p1[1], a, p_target[0], p_target[1])
-    
+
 
 def pdis(x1, y1, a, xt, yt, tol):
     x2 = math.cos(math.radians(a)) + x1
@@ -107,15 +107,15 @@ def components(origin, line_point, point):
     x = base_line.distance(point)
     y = (point_line.length**2 - x**2)**0.5
     print x, y
-    
 
-def scale_rectangle(w, h, factor): 
+
+def scale_rectangle(w, h, factor):
     a, b, c = 1, (w + h), -((factor - 1) * h * w)
     correction = -(-b - (b**2.-4.*a*c)**0.5)/(2.*a)
 
     # h and w swapped purposefully
     new_w, new_h = -(h - correction), -(w - correction)
-    return new_w, new_h  
+    return new_w, new_h
 
 def scale_move_rectangle(x, y, w, h, factor):
     new_w, new_h = scale_rectangle(w, h, factor)
@@ -185,13 +185,13 @@ def getParams(s):
 
 def overlap_split(range, pairs):
 
-    '''Overlaps in a given range, returns [overlaps, not_overlaps]''' 
+    '''Overlaps in a given range, returns [overlaps, not_overlaps]'''
 
     pairs = sorted(pairs)
     min_, max_ = range
     base = min_
     overlaps, non_overlaps = [], []
-    
+
     for pair in pairs:
         if pair[0] > base and pair[0] < max_:
             limit = min(pair[0], max_)

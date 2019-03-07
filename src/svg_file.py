@@ -1,9 +1,9 @@
 import xml.etree.ElementTree as ET
 from e_math import convert_feet
 
-        
+
 class Svg_Page():
-    
+
     def __init__(self, fn):
 
         self.scale_rect = None
@@ -13,11 +13,11 @@ class Svg_Page():
 
         self.rects = []
         self.xml_rects = []
-        
+
         self.xmlns = '{http://www.w3.org/2000/svg}'
         self.__read_xml(fn)
         self.__make_rects()
-        
+
         if not self.scale_rect:
             print "No Scale"
         else:
@@ -29,7 +29,7 @@ class Svg_Page():
                 if origin.svg_rect.contains_center_of(window.svg_rect):
                     projection_windows.append(window)
             self.projections.append(Svg_Projection(origin, projection_windows))
-                    
+
     def __read_xml(self, fn):
         root = ET.parse(fn).getroot()
         for layer in root.findall(self.xmlns + 'g'):
@@ -64,13 +64,13 @@ class Svg_Page():
         return set([w.color_id() for w in self.windows])
 
     def titles(self):
-        return set([w.title for w in self.windows])    
+        return set([w.title for w in self.windows])
 
 
 class Svg_Projection():
-    
+
     def __init__(self, origin, windows):
-        
+
         self.origin = origin
         self.windows = windows
         self.walls = origin.walls
@@ -101,25 +101,25 @@ class Svg_Rectangle():
 
         for key in ['width', 'height', 'x', 'y']:
             setattr(self, key, float(xml_rect.attrib[key]))
-        
+
         self.y = - (self.y + self.height)
         self.id = xml_rect.attrib['id']
-        
+
         if 'transform' in xml_rect.attrib:
             print 'Error: Some elements tranformed, which disrupts parsing'
-            
-        self.style = {}    
+
+        self.style = {}
         for kv in xml_rect.attrib['style'].split(';'):
             k, v = kv.split(':')
             self.style[k] = v
-    
+
     def contains_center_of(self, other):
         x_bound = [self.x, self.x + self.width]
         y_bound = [self.y, self.y + self.height]
-        
-        return (x_bound[0] < other.center()[0] < x_bound[1] and 
+
+        return (x_bound[0] < other.center()[0] < x_bound[1] and
             y_bound[0] < other.center()[1] < y_bound[1])
-    
+
     def center(self):
         return ((2 * self.x + self.width)/2, (2 * self.y + self.height)/2)
 
@@ -140,9 +140,9 @@ class Svg_Origin():
     def __init__(self, svg_rect):
 
         self.svg_rect = svg_rect
-        
+
         # Possible to assign more than one wall at once
-        self.walls = svg_rect.title.split()[1:] 
+        self.walls = svg_rect.title.split()[1:]
 
 
 class Svg_Window():
@@ -156,8 +156,8 @@ class Svg_Window():
         self.id = svg_rect.id
 
     def center(self):
-        return (self.x + self.width/2), (self.y + self.height/2) 
-    
+        return (self.x + self.width/2), (self.y + self.height/2)
+
     def area(self):
         return self.width*self.height
 

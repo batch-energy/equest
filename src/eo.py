@@ -16,7 +16,7 @@ class RegenerateError(Exception):
         self.msg = msg
 
 class Filter(object):
-    
+
     def __init__(self):
         attr = {}
 
@@ -86,7 +86,7 @@ class Building(object):
                 objects.append(self.objects[wrap(name)])
             else:
                 raise '%s not found' % name
-        return objects        
+        return objects
 
     def __clean_file(self, text):
         return '\n'.join([l.strip() for l in text.split('\n')
@@ -201,7 +201,7 @@ class Building(object):
         spaces = self.kinds('SPACE').values()
         checked_set = set()
         space_set = set(spaces)
-    
+
         # Identify candidate adjacent space pairs
         horiz_space_pairs, vert_space_pairs = [], []
         for space in spaces:
@@ -241,9 +241,9 @@ class Building(object):
                     if ls1.distance(ls2) > 0.1:
                         continue
                     elif points_1[0].distance(points_2[0]) < 0.1:
-                        continue 
+                        continue
                     elif points_1[1].distance(points_2[1]) < 0.1:
-                        continue 
+                        continue
                     elif abs(180 - angle(ls1.coords, ls2.coords)) > 5:
                         continue
                     elif points_1[0].distance(points_2[1]) < 0.1 and points_1[1].distance(points_2[0]) < 0.1:
@@ -282,7 +282,7 @@ class Building(object):
                 z = lower - space.z_global()
                 if not is_close(lower, space_min, 0.1):
                     i.attr['Z'] = z
-                if not is_close(upper-lower, space_max-space_min, 0.1): 
+                if not is_close(upper-lower, space_max-space_min, 0.1):
                     i.attr['HEIGHT'] = upper - lower
                 i.attr['NEXT-TO'] = other_space_name
                 i.attr['LOCATION'] = 'SPACE-V%s' % (wall_index)
@@ -290,7 +290,7 @@ class Building(object):
                     i.attr['CONSTRUCTION'] = construction['air']
                 else:
                     i.attr['CONSTRUCTION'] = construction['interior']
-    
+
         # Create exterior walls
         for space in self.kinds('SPACE').values():
             space_min = space.z_global()
@@ -302,7 +302,7 @@ class Building(object):
 
                 if (space.name, i) in bad_walls and make_ewall_for_bad_space_pairs is False:
                     continue
-                
+
                 for j, (lower, upper) in enumerate(spans, 1):
                     if is_close(lower, upper, 0.1):
                         continue
@@ -326,7 +326,7 @@ class Building(object):
 
     def apply_grade(self, default=0, gradelines=None):
         gradelines = gradelines or []
-    
+
     def convert_obvious_underground_walls(self):
 
         '''Convert Ewall to Uwall if it's under a Uwall floor'''
@@ -338,7 +338,7 @@ class Building(object):
         underground_floors = [ugw
             for ugw in self.kinds('UNDERGROUND-WALL').values()
             if ugw.tilt() == 180]
-        
+
         candidates = []
         for ugf in underground_floors:
             for ewall, ewall_midpoint in ewall_midpoints.items():
@@ -346,7 +346,7 @@ class Building(object):
                     if ewall_midpoint.distance(ugf.parent.polygon.shapely_poly) < 1:
                         candidates.append(ewall)
 
-        for ewall in set(candidates):    
+        for ewall in set(candidates):
             ewall.to_uwall()
 
     def make_windows(self, svg_path, tol_d=5, tol_a=5):
@@ -355,9 +355,9 @@ class Building(object):
 
 
         Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'scale', 'split', 'material', 'plenum'])
-    
+
         svg = svg_file.Svg_Page(svg_path)
-    
+
         # - Sizes and attributes are ALL based off the color
         # - each color for windows should have single one, of the same color with a
         #   title and attributes defeined in the xml directly
@@ -369,23 +369,23 @@ class Building(object):
         #   _c : construction (for doors)
         #   _gt : glass type (for windows)
         #   _plenum : include on plenum y/[n]
-    
+
         color_map = {}
         for window in svg.windows:
             color = window.color_id()
-    
+
             if window.title:
                 if color in color_map:
                     raise Exception('title defined multiple times for color %s' % color)
 
-                # TODO - Handle default more gracefully    
+                # TODO - Handle default more gracefully
                 if '#000000' in color or window.get('_c'):
                     kind = 'door'
                     material = window.get('_c') or get_client_construction()['exterior']
                 else:
                     kind = 'window'
                     material = window.get('_gt') or get_client_glass()
-    
+
                 color_map[color] = Window_Kind(
                     kind,
                     window.title,
@@ -396,11 +396,11 @@ class Building(object):
                     material,
                     (window.get('_plenum') or 'no').startswith('y')
                     )
-    
+
         for color in sorted(svg.color_ids()):
             if not color in color_map:
                 raise Exception('Color %s not defined' % color)
-    
+
         for projection in svg.projections:
 
             # This loop because it's possible for projection to
@@ -414,7 +414,7 @@ class Building(object):
                     raise
 
                 ref_p1, ref_p2 = reference_wall.get_vertices()
-                
+
                 for wall in reference_wall.planar_walls(tol_d=tol_d, tol_a=tol_a):
                     w_p1, w_p2 = wall.get_vertices()
 
@@ -422,7 +422,7 @@ class Building(object):
 
                     if distance(w_p1, ref_p2) > distance(w_p2, ref_p1):
                          origin_shift = -origin_shift
-    
+
                     wall_x1 = origin_shift
                     wall_y1 = wall.z_global() - reference_wall.z_global()
                     wall_width = wall.width()
@@ -431,25 +431,25 @@ class Building(object):
                     wall_y2 = wall_y1 + wall_height
 
                     for i, window in enumerate(projection.windows, 1):
-    
+
                         window_data = color_map[window.color_id()]
 
-                        # Plenum walls normally ignored 
+                        # Plenum walls normally ignored
                         if window_data.plenum == False and wall.parent.is_plenum():
                             continue
-    
+
                         window_x1 = window.x
                         window_y1 = window.y
                         window_width = window_data.width or window.width
                         window_height = window_data.height or window.height
                         window_x2 = window_x1 + window_width
                         window_y2 = window_y1 + window_height
-    
-                        # if windows is set to split, it will be broken across the 
+
+                        # if windows is set to split, it will be broken across the
                         # different walls and omitted when the wall does not exist.
-                        # Otherwise, the windows is applied, in full, on the wall 
+                        # Otherwise, the windows is applied, in full, on the wall
                         # where its center falls
-    
+
                         if window_data.split:
                             x1 = max(0, window_x1-wall_x1)
                             y1 = max(0, window_y1-wall_y1)
@@ -493,7 +493,7 @@ class Building(object):
                             win.attr['WIDTH'] = w
                             win.attr['HEIGHT'] = h
                             win.attr['GLASS-TYPE'] = window_data.material
-    
+
     def rotate_space_polygons(self, degrees):
 
         '''Rotate all spaces'''
@@ -547,9 +547,9 @@ class Building(object):
                 x, y = [mean(n) for n in zip(*[(p.x, p.y) for _, p in group])]
                 for (space, i), point in group:
                     lookup[(space, i)] = (x, y)
-        
+
         # Assign new points if defined, or existing if not
-        polygons = []  
+        polygons = []
         for space in self.kinds('SPACE').values():
 
             # do not adjust the same polygons more than once
@@ -560,7 +560,7 @@ class Building(object):
 
             space.polygon.set_vertices(
                 [lookup.get((space, i), point)
-                for i, point in enumerate(space.polygon.vertices)]) 
+                for i, point in enumerate(space.polygon.vertices)])
             space.polygon.delete_sequential_dupes()
 
     def combine_close_vertices_within_floor(self, tol=1):
@@ -575,11 +575,11 @@ class Building(object):
 
         # Floors are done individually
         for floor in self.kinds('FLOOR').values():
-            polygons = set([space.polygon for space in floor.children]) 
+            polygons = set([space.polygon for space in floor.children])
             points = {
                 (polygon, i):point for polygon in polygons
                     for i, point in enumerate(polygon.points)}
-            
+
             # Create groups of points
             groups = []
             for key, point in points.items():
@@ -602,12 +602,12 @@ class Building(object):
                     x, y = [mean(n) for n in zip(*[(p.x, p.y) for _, p in group])]
                     for (polygon, i), point in group:
                         lookup[(polygon, i)] = (x, y)
-            
+
             # Assign new points if defined, or existing if not
             for polygon in polygons:
                 polygon.set_vertices(
                     [lookup.get((polygon, i), point)
-                    for i, point in enumerate(polygon.vertices)]) 
+                    for i, point in enumerate(polygon.vertices)])
                 polygon.delete_sequential_dupes()
 
     def combine_close_vertices_to_space(self, space, floors, tol=0.5):
@@ -631,36 +631,36 @@ class Building(object):
 
         '''
         Splits space where it intersects with adjacent space across multiple floors
-        
+
         space pairs can be provided, if known. for each pair, the first contains the
         lines, and the second contains the points which are along that line
-        
+
         '''
 
         if not space_pairs:
             _, pairs = self.space_pairs()
         else:
             pairs = space_pairs
-        
+
         for space, other_space in pairs:
             print space, other_space
             for i, line in enumerate(space.polygon.lines):
                 for j, point in enumerate(other_space.polygon.points):
-                    
-                    # Line and point are distant 
+
+                    # Line and point are distant
                     if point.distance(line) > tol:
                         continue
 
-                    # Point is on line endpoint 
+                    # Point is on line endpoint
                     if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
                         continue
 
                     p = line.interpolate(line.project(point))
 
-                    space.polygon.add_verticy(p, i) # plus because we're looping through the lines 
+                    space.polygon.add_verticy(p, i) # plus because we're looping through the lines
                     other_space.polygon.set_verticy(p, j)
 
-                    #space.polygon.delete_sequential_dupes() 
+                    #space.polygon.delete_sequential_dupes()
                     other_space.polygon.delete_sequential_dupes()
 
     def split_interior_walls(self, tol=1):
@@ -669,9 +669,9 @@ class Building(object):
 
         added = []
 
-        for floor in self.kinds('FLOOR').values():        
+        for floor in self.kinds('FLOOR').values():
 
-            polygons = set([space.polygon for space in floor.children]) 
+            polygons = set([space.polygon for space in floor.children])
 
             points = {
                 (polygon, i):point for polygon in polygons
@@ -700,7 +700,7 @@ class Building(object):
             for polygon in polygons:
                 polygon.set_vertices(
                     [lookup_move.get((polygon, i), point)
-                    for i, point in enumerate(polygon.vertices)]) 
+                    for i, point in enumerate(polygon.vertices)])
 
             # add new points along lines
             for (poly, i), point in sorted(lookup_add.items(), reverse=True):
@@ -715,8 +715,8 @@ class Building(object):
         Creates roofs in model
 
             tol: vertical tolerance for overlapping spaces
-            use_space_poly_tol: when close enough, just use the space poly 
-            ratio_tol: skip when area is very small compared to perimeter 
+            use_space_poly_tol: when close enough, just use the space poly
+            ratio_tol: skip when area is very small compared to perimeter
 
         '''
 
@@ -743,7 +743,7 @@ class Building(object):
                     name = utils.suffix(space.name, '-Roof_%s poly' % (i-deleted_count))
                     polygon = Polygon(self, name=name)
                     polygon.set_vertices(list(shapely_polgyon.exterior.coords))
-                    try:                            
+                    try:
                         polygon.delete_sequential_dupes()
                     except RegenerateError:
                         polygon.delete()
@@ -767,7 +767,7 @@ class Building(object):
                 wall = Wall(self, name=utils.suffix(space.name, '-Roof_%s' % i), parent=space)
                 wall.attr['CONSTRUCTION'] = get_client_construction()['roof']
                 wall.attr['LOCATION'] = 'TOP'
-                if polygon_name != space.polygon.name:  
+                if polygon_name != space.polygon.name:
                     wall.attr['POLYGON'] = polygon_name
 
     def create_floors(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.10, z=0, spaces=None):
@@ -776,8 +776,8 @@ class Building(object):
         Creates floors and overhangs in model
 
             tol: vertical tolerance for overlapping spaces
-            use_space_poly_tol: when close enough, just use the space poly 
-            ratio_tol: skip when area is very small compared to perimeter 
+            use_space_poly_tol: when close enough, just use the space poly
+            ratio_tol: skip when area is very small compared to perimeter
         '''
 
         for space in spaces or self.kinds('SPACE').values():
@@ -804,7 +804,7 @@ class Building(object):
                     polygon = Polygon(self, name=name)
                     polygon.set_vertices(list(shapely_polygon.exterior.coords))
                     polygon.mirror_and_reverse()
-                    try:                            
+                    try:
                         polygon.delete_sequential_dupes()
                     except RegenerateError:
                         polygon.delete()
@@ -837,8 +837,8 @@ class Building(object):
         Creates horizontal interior walls
 
             tol: vertical tolerance for overlapping spaces
-            use_space_poly_tol: when close enough, just use the space poly 
-            ratio_tol: skip when area is very small compared to perimeter 
+            use_space_poly_tol: when close enough, just use the space poly
+            ratio_tol: skip when area is very small compared to perimeter
         '''
 
         for space in self.kinds('SPACE').values():
@@ -867,7 +867,7 @@ class Building(object):
                             ceiling_polygon_name = utils.suffix(space.name, '-CEILING_%s-%s poly' % (i, j))
                             polygon = Polygon(self, name=ceiling_polygon_name)
                             polygon.set_vertices(list(ceiling_shapely_polygon.exterior.coords))
-                            try:                            
+                            try:
                                 polygon.delete_sequential_dupes()
                             except RegenerateError:
                                 polygon.delete()
@@ -888,9 +888,9 @@ class Building(object):
         '''Creates zones under fake system'''
 
         system = System(self, '"Dummy System"')
-        system.attr['TYPE'] = 'VAVS' 
-        system.attr['HEAT-SOURCE'] = 'NONE' 
-        system.attr['CHW-LOOP'] = '"DEFAULT-CHW"' 
+        system.attr['TYPE'] = 'VAVS'
+        system.attr['HEAT-SOURCE'] = 'NONE'
+        system.attr['CHW-LOOP'] = '"DEFAULT-CHW"'
 
         for space in self.kinds('SPACE').values():
             space.make_zone()
@@ -1008,7 +1008,7 @@ class Default(object):
     @property
     def type(self):
         return self.key[1]
-        
+
     def read(self, lines):
 
         for line in lines[1:]:
@@ -1081,7 +1081,7 @@ class Object(object):
 
     def delete(self):
         for child in self.children:
-            child.delete()            
+            child.delete()
         if self.parent:
             self.parent.children.remove(self)
         del self.b.objects[self.name]
@@ -1168,7 +1168,7 @@ class Object(object):
         return [o for o in self.b.kinds(self.kind).values()
             if o.parent==self.parent]
 
-    
+
 
 
 class Polygon(Object):
@@ -1183,7 +1183,7 @@ class Polygon(Object):
 
     @property
     def attr(self):
-        '''attr not stored for Polygons. Data stored in self.vertices 
+        '''attr not stored for Polygons. Data stored in self.vertices
         instead.  Attrs are are created on the fly as needed'''
 
         attr = OrderedDict()
@@ -1200,7 +1200,7 @@ class Polygon(Object):
             line.p1, line.p2 = [Point(p) for p in ps]
             self.lines.append(line)
         self.points = [Point(p) for p in self.vertices]
-    
+
     def set_vertices(self, vertices):
         if isinstance(vertices, ShapelyPoly):
             self.vertices = list(shapely_polygon.exterior.coords)[:-1]
@@ -1235,7 +1235,7 @@ class Polygon(Object):
             x, y = v[1:-1].split(',')
             self.vertices.append([float(x),float(y)])
         self.regenerate()
-    
+
     def area(self):
         return self.shapely_poly.area
 
@@ -1259,7 +1259,7 @@ class Polygon(Object):
         return vertices[v-1:v+1]
 
     def sequential_vertices_list(self):
-        return [(self.vertices[i], self.vertices[(i+1)%(len(self.vertices))]) 
+        return [(self.vertices[i], self.vertices[(i+1)%(len(self.vertices))])
             for i in range(len(self.vertices))]
 
     def is_ccw(self):
@@ -1304,15 +1304,15 @@ class Floor(Object):
     def plenum_height(self):
         return self.attr.get('FLOOR-HEIGHT') - self.attr.get('SPACE-HEIGHT')
 
-    def height(self): 
+    def height(self):
         return self.attr.get('FLOOR-HEIGHT')
-    
+
 
     def has_plenum(self):
         return (self.plenum_height > 0)
 
     def duplicate(self, name, z):
-        
+
         '''Duplicates Floor and all child elements, with new z and name'''
 
         old_replace = '"' + unwrap(self.name) + '-'
@@ -1335,7 +1335,7 @@ class Floor(Object):
                     new_wall = U_Wall(self.b, new_wall_name, 'UNDERGROUND-WALL', parent=new_space)
                 new_wall.inherit(wall)
                 if 'NEXT-TO' in new_wall.attr:
-                     new_wall.attr['NEXT-TO'] = new_wall.attr['NEXT-TO'].replace(old_replace, new_replace) 
+                     new_wall.attr['NEXT-TO'] = new_wall.attr['NEXT-TO'].replace(old_replace, new_replace)
                 for wall_element in wall.children:
                     new_wall_element_name = wall_element.name.replace(old_replace, new_replace)
                     if wall_element.kind == 'WINDOW':
@@ -1412,7 +1412,7 @@ class Space(Object):
 
     def vertices(self):
         return self.polygon.vertices
-        
+
     def point_pair_shapely(self, verticy):
         return (self.polygon.points[verticy-1],
                 self.polygon.points[verticy%self.count_vertices()])
@@ -1471,7 +1471,7 @@ class Space(Object):
     def name_parts(self):
         parts = unwrap(self.name).split('-')
         assert len(parts) == 2
-        return parts 
+        return parts
 
     def make_zone(self, system=None):
 
@@ -1479,9 +1479,9 @@ class Space(Object):
             system = self.b.objects['"Dummy System"']
 
         name = utils.suffix(self.name, ' ZONE')
-        zone = Zone(self.b, name=name, parent=system) 
-        zone.attr['TYPE'] = self.get('ZONE-TYPE') or 'CONDITIONED' 
-        zone.attr['SPACE'] = self.name 
+        zone = Zone(self.b, name=name, parent=system)
+        zone.attr['TYPE'] = self.get('ZONE-TYPE') or 'CONDITIONED'
+        zone.attr['SPACE'] = self.name
 
     def has_windows(self):
         return any([e.has_windows() for e in self.e_walls()])
@@ -1531,10 +1531,10 @@ class Wall(Object):
         return self.tilt() == 90
 
     def x_global(self):
-        return self.parent.x_global() + self.x() 
+        return self.parent.x_global() + self.x()
 
     def y_global(self):
-        return self.parent.y_global() + self.y() 
+        return self.parent.y_global() + self.y()
 
     def z_global(self):
         return self.parent.z_global() + self.z()
@@ -1605,7 +1605,7 @@ class Wall(Object):
         return self.parent.zone()
 
     def near(self, point, tol):
-        return e_math.line_distance(point, *self.get_vertices()) < tol  
+        return e_math.line_distance(point, *self.get_vertices()) < tol
 
     def midpoint(self):
         p1, p2 = self.get_vertices()
@@ -1621,14 +1621,14 @@ class Wall(Object):
     def name_parts(self):
         parts = unwrap(self.name).split('-')
         assert len(parts) == 3
-        return parts 
+        return parts
 
     def planar_walls(self, tol_d, tol_a):
-        
+
         '''All walls in same plane, given distance and angle tolerances'''
 
         def x_y_angle(wall):
-            return list(wall.midpoint()) + [wall.angle(True)] 
+            return list(wall.midpoint()) + [wall.angle(True)]
 
         walls = []
 
@@ -1644,7 +1644,7 @@ class Wall(Object):
                 walls.append(wall)
 
         return walls
-        
+
 
 class E_Wall(Wall):
 
@@ -1669,17 +1669,17 @@ class E_Wall(Wall):
             if door.parent.name == self.name]
 
     def to_uwall(self, split=None):
-        
+
         def get_new_uwall_name():
             name_parts = self.name_parts()
             while 1:
                 name_parts[2] = 'U' + name_parts[2][1:]
-                for suffix in (' ' + ascii_lowercase):  
+                for suffix in (' ' + ascii_lowercase):
                     name_parts[2] += suffix.strip()
                     name = '"%s"' % '-'.join(name_parts)
                     if not name in self.b.objects:
-                        return name 
-        
+                        return name
+
         uwall = U_Wall(self.b, name=get_new_uwall_name(), parent=self.parent)
         for name, value in self.attr.items():
             uwall.attr[name] = value
@@ -1728,17 +1728,17 @@ class U_Wall(Wall):
         Wall.__init__(self, b, name, kind, parent)
 
     def to_ewall(self, split=None):
-        
+
         def get_new_ewall_name():
             name_parts = self.name_parts()
             while 1:
                 name_parts[2] = 'E' + name_parts[2][1:]
-                for suffix in ' ' + ascii_lowercase:  
+                for suffix in ' ' + ascii_lowercase:
                     name_parts[2] += suffix.strip()
                     name = '"%s"' % '-'.join(name_parts)
                     if not name in self.b.objects:
-                        return name 
-        
+                        return name
+
         ewall = E_Wall(self.b, name=get_new_ewall_name(), parent=self.parent)
         for name, value in self.attr.items():
             ewall.attr[name] = value
@@ -1781,7 +1781,7 @@ class Wall_Object(Object):
 
     def x_global(self):
         pass #TODO - make this as needed
-        return 
+        return
 
     def y_global(self):
         pass #TODO - make this as needed
@@ -1816,7 +1816,7 @@ class Window(Wall_Object):
         Wall_Object.__init__(self, b, name, kind, parent)
 
     def reduce(self, factor):
-        
+
         # scale window to percent vision
         x, y, w, h = e_math.scale_move_rectangle(
             self.attr['X'],
@@ -1956,7 +1956,7 @@ def identify_candidate_adjacent_walls():
                     wall_pairs.append(wall_pair)
                     continue
                 bad_wall_pairs.append(wall_pair)
-        
+
     print 'discovered %s wall_pairs' % len(wall_pairs)
     print 'discovered %s bad_wall_pairs' % len(bad_wall_pairs)
     print bad_wall_pairs
@@ -1965,7 +1965,7 @@ if __name__ == '__main__':
 
     b1 = Building()
     b1.load(os.path.join('compare', 'b1.inp'))
-    
+
     for object in b1.objects:
         print object
         for attr in object.attrs:
@@ -1974,7 +1974,7 @@ if __name__ == '__main__':
     b2 = Building()
     b1.load(os.path.join('compare', 'b1.inp'))
 
-    
+
 
 
     print "done"
@@ -1987,4 +1987,3 @@ if __name__ == '__main__':
 
 
 
-    
