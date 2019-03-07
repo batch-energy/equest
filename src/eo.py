@@ -961,6 +961,38 @@ class Building(object):
         self.create_floors()
         self.create_ceilings()
 
+    def nudge_windows(self):
+
+        for window in self.kinds('WINDOW').values():
+            try:
+                win_x = window.attr['X']
+                win_y = window.attr['Y']
+                win_w = window.attr['WIDTH']
+                win_h = window.attr['HEIGHT']
+            except IndexError:
+                continue
+
+            wall = window.parent
+
+            wall_x = float(window.attr['X'])
+            wall_y = float(window.attr['Y'])
+            wall_w = float(window.attr['WIDTH'])
+            wall_h = float(window.attr['HEIGHT'])
+
+            wall_x = float(wall.x())
+            wall_y = float(wall.y())
+            wall_w = float(wall.width())
+            wall_h = float(wall.height())
+
+            if win_w / wall_w > 0.9:
+                window.attr['X'] = (wall_w - win_w) / 2
+            elif win_y < 0:
+                window.attr['Y'] = 0.5
+            elif win_x < 0:
+                window.attr['X'] = 0.5
+            elif win_x + win_w > wall_w:
+                window.attr['X'] = wall_w - win_w - 0.5
+
 class Default(object):
 
     def __init__(self, b, kind, type=None):
