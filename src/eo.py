@@ -9,6 +9,7 @@ from string import ascii_lowercase
 import svg_file
 from utils import wrap, unwrap
 import operator
+from shapely.errors import TopologicalError
 
 class RegenerateError(Exception):
 
@@ -724,8 +725,14 @@ class Building(object):
             running_roof_polygon = copy.copy(space.shapely_poly)
             for other_space in self.kinds('SPACE').values():
                 if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
-                    running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
-
+                    try:
+                        running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
+                    except TopologicalError as e:
+                        msg = 'This line fails when a space has very narrow ' + \
+                              ' corridors connecting larger pieces. ' + \
+                              '"Combine close vertices collapes the corridor\n\n'
+                        print msg
+                        raise e
             if running_roof_polygon.area / space.shapely_poly.area > use_space_poly_tol:
                 roof_polygon_name_list = [space.polygon.name]
             else:
@@ -784,7 +791,14 @@ class Building(object):
             running_floor_polygon = copy.copy(space.shapely_poly)
             for other_space in self.kinds('SPACE').values():
                 if abs(space.z_global() - (other_space.z_global() + other_space.height())) < tol:
-                    running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
+                    try:
+                        running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
+                    except TopologicalError as e:
+                        msg = 'This line fails when a space has very narrow ' + \
+                              ' corridors connecting larger pieces. ' + \
+                              '"Combine close vertices collapes the corridor\n\n'
+                        print msg
+                        raise e
 
             if running_floor_polygon.area / space.shapely_poly.area > use_space_poly_tol:
                 floor_polygon_name_list = [space.polygon.name]
@@ -845,7 +859,14 @@ class Building(object):
             ceiling_polygons = copy.copy(space.shapely_poly)
             for i, other_space in enumerate(self.kinds('SPACE').values()):
                 if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
-                    ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
+                    try:
+                        ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
+                    except TopologicalError as e:
+                        msg = 'This line fails when a space has very narrow ' + \
+                              ' corridors connecting larger pieces. ' + \
+                              '"Combine close vertices collapes the corridor\n\n'
+                        print msg
+                        raise e
 
                     if isinstance(ceiling_polygon, MultiPolygon):
                         ceiling_shapely_polygon_list = [p for p in ceiling_polygon.geoms]
