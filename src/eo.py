@@ -381,7 +381,7 @@ class Building(object):
                 # TODO - Handle default more gracefully
                 if '#000000' in color or window.get('_c'):
                     kind = 'door'
-                    material = window.get('_c') or get_client_construction()['exterior']
+                    material = window.get('_c') or get_client_construction()['door']
                 else:
                     kind = 'window'
                     material = window.get('_gt') or get_client_glass()

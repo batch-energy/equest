@@ -30,19 +30,23 @@ def get_client_construction():
         construction['underground_slab'] = '"SUBGRADE SLAB CONSTRUCTION"'
         construction['overhang'] = '"EXTERIOR FLOOR CONSTRUCTION"'
 
+        construction['door'] = '"EXTERIOR WALL CONSTRUCTION"'
+
     elif client == 'TNZ':
 
         construction['air'] = '"AIR WALL"'
-        construction['interior'] = '"INT WALL CONST"'
-        construction['exterior'] = '"EXT WALL CONST"'
-        construction['underground'] = '"SUB WALL CONST"'
+        construction['interior'] = '"C I WALL"'
+        construction['exterior'] = '"C E WALL"'
+        construction['underground'] = '"C S WALL"'
 
-        construction['slab'] = '"SLAB CONST"'
-        construction['ceiling'] = '"CEILING CONST"'
+        construction['slab'] = '"C I FLOOR"'
+        construction['ceiling'] = '"C I CEIL"'
 
-        construction['underground_slab'] = '"SUB WALL CONST"'
-        construction['overhang'] = '"EXT FLOOR CONST"'
-        construction['roof'] = '"ROOF CONST"'
+        construction['underground_slab'] = '"C S FLOOR"'
+        construction['overhang'] = '"C E FLOOR"'
+        construction['roof'] = '"C E ROOF"'
+
+        construction['door'] = '"C DOOR"'
 
     else:
         construction['air'] = '"AIR WALL CONSTRUCTION"'
@@ -58,6 +62,7 @@ def get_client_construction():
         construction['underground_slab'] = '"SUBGRADE SLAB CONSTRUCTION"'
         construction['overhang'] = '"EXTERIOR FLOOR CONSTRUCTION"'
 
+        construction['door'] = '"EXTERIOR WALL CONSTRUCTION"'
 
     return construction
 
