@@ -462,6 +462,8 @@ $ ---------------------------------------------------------
 $              Polygons
 $ ---------------------------------------------------------
 
+"Dummy Poly" = POLYGON
+   ..
 
 $ ---------------------------------------------------------
 $              Wall Parameters
@@ -479,44 +481,6 @@ $ ---------------------------------------------------------
 $ ---------------------------------------------------------
 $              Misc Cost Related Objects
 $ ---------------------------------------------------------
-
-
-
-$ *********************************************************
-$ **                                                     **
-$ **      Floors / Spaces / Walls / Windows / Doors      **
-$ **                                                     **
-$ *********************************************************
-
-SET-DEFAULT FOR FLOOR           
-   WIDTH            = 1
-   DEPTH            = 1
-   SHAPE            = NO-SHAPE
-   ..
-
-SET-DEFAULT FOR SPACE           
-   FLOOR-WEIGHT     = 70
-   TEMPERATURE      = ( 73 )
-   ..
-
-SET-DEFAULT FOR EXTERIOR-WALL   
-   CONSTRUCTION     = "EXTERIOR WALL CONSTRUCTION"
-   ..
-
-SET-DEFAULT FOR INTERIOR-WALL   
-   CONSTRUCTION     = "INTERIOR WALL CONSTRUCTION"
-   ..
-
-SET-DEFAULT FOR UNDERGROUND-WALL
-   CONSTRUCTION     = "SUBGRADE SLAB CONSTRUCTION"
-   ..
-
-SET-DEFAULT FOR WINDOW          
-   GLASS-TYPE       = "EXTERIOR GLASS"
-   C-WELL-HEIGHT    = 0
-   C-WELL-WIDTH     = 0
-   ..
-
 
 $ *********************************************************
 $ **                                                     **
@@ -581,6 +545,49 @@ $ *********************************************************
    INPUT-TYPE       = COEFFICIENTS
    COEFFICIENTS     = ( 0.004123, 0.885877, 0.11, 0 )
    ..
+
+
+$ *********************************************************
+$ **                                                     **
+$ **      Floors / Spaces / Walls / Windows / Doors      **
+$ **                                                     **
+$ *********************************************************
+
+SET-DEFAULT FOR FLOOR
+   WIDTH            = 1
+   DEPTH            = 1
+   ..
+
+SET-DEFAULT FOR SPACE
+   FLOOR-WEIGHT     = 70
+   TEMPERATURE      = ( 73 )
+   ..
+
+SET-DEFAULT FOR EXTERIOR-WALL
+   CONSTRUCTION     = "EXTERIOR WALL CONSTRUCTION"
+   ..
+
+SET-DEFAULT FOR INTERIOR-WALL
+   CONSTRUCTION     = "INTERIOR WALL CONSTRUCTION"
+   ..
+
+SET-DEFAULT FOR UNDERGROUND-WALL
+   CONSTRUCTION     = "SUBGRADE SLAB CONSTRUCTION"
+   ..
+
+SET-DEFAULT FOR WINDOW
+   GLASS-TYPE       = "EXTERIOR GLASS"
+   C-WELL-HEIGHT    = 0
+   C-WELL-WIDTH     = 0
+   ..
+
+"Dummy Floor" = FLOOR
+   Z                = 0.0
+   SHAPE            = NO-SHAPE
+   FLOOR-HEIGHT     = 16.5
+   SPACE-HEIGHT     = 12.5
+   ..
+
 
 
 $ *********************************************************
@@ -838,6 +845,11 @@ SET-DEFAULT FOR ZONE
    HW-LOOP          = "HW Loop"
    ..
 
+"Dummy System" = SYSTEM
+   TYPE             = VAVS
+   HEAT-SOURCE      = NONE
+   CHW-LOOP         = "DEFAULT-CHW"
+   ..
 
 
 $ *********************************************************
