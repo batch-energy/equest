@@ -1,224 +1,151 @@
-from e_math import convert_feet, distance
-from collections import OrderedDict
-import json
-import math
-import eo
+from collections import OrderedDict, Counter
 import re
 import sys
 import os
+
+from e_math import convert_feet, distance, is_close
+import eo
 import utils
 import ref
-import copy
 
-def convert_json(input):
-    if isinstance(input, dict):
-        return {convert_json(key): convert_json(value) for key, value in input.iteritems()}
-    elif isinstance(input, list):
-        return [convert_json(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
-    else:
-        return input
 
 def get_fdf_attribute(attr, line):
-    pat = '(?<=/%s\\b).*?(?=[>/])' % attr
-    chunk_re = re.findall(pat, line)
-    if chunk_re:
-        return chunk_re[0].strip()
-    else:
-        return None
+    for part in line.split('/'):
+        name, _, value = part.partition(' ')
+        if name == attr:
+            return value.strip().lstrip('(').rstrip(')')
 
 
 class Pdf_File(object):
 
     def __init__(self, pdf_path):
         self.pdf_path = pdf_path
-        self.page_numbers = OrderedDict()
         self.pages = OrderedDict()
         self.messages = []
-        self.polygons = []
-        self.origins = []
-        self.scales = []
-        self.b = eo.Building()
-        self.read_pdf()
 
-    def define(self):
-        '''Query user to provide information about the building floors'''
+        lines = []
+        with open(self.pdf_path, 'rb') as f:
+            lines = [line.replace('<<', '').replace('>>', '').strip()
+                for line in f if line.startswith('<< ')]
 
-        self.define_floors()
-
-    def create(self):
-        '''
-        Once the pdf file is read and the floors are defined, the building
-        can be created
-        '''
-
-        self.create_floors()
-        self.process_polygons()
-
-    def read_pdf(self):
-        f = open(self.pdf_path, 'rb')
-        text = f.read()
-        lines = [line.replace('\n', ' ')
-            for line in re.findall('obj.*?endobj', text, re.DOTALL)]
-
-        self.parse(lines)
+        self.__parse(lines)
+        self.__verify_specials()
+        
         if self.messages:
-            return self.messages
+            return
 
-        self.verify_specials()
-        if self.messages:
-            return self.messages
+    def __parse(self, lines):
 
-        self.make_page_dict()
+        '''Parse lines in fdf, make page objects'''
 
-        self.verify_polygons()
-        if self.messages:
-            return self.messages
-
-    def parse(self, lines):
-        '''Need to search through the objects... we don't know the
-        page names yet so we create an OrderedDict based on the page number'''
         for line in lines:
             page_number = get_fdf_attribute('Page', line)
 
             if page_number:
-                if not page_number in self.page_numbers:
-                    self.page_numbers[page_number] = Pdf_Page(page_number)
-                p = self.page_numbers[page_number]
+
+                if not page_number in self.pages:
+                    # Make new page if page number is new
+                    pdf_page = Pdf_Page()
+                    self.pages[page_number] = pdf_page
+                else: 
+                    # Use exsting if page numebr exists
+                    pdf_page = self.pages[page_number]
+
                 if '(origin' in line.lower():
-                    p.origins.append(Pdf_Origin(line, page_number))
+                    if pdf_page.origin is None:
+                        pdf_page.origin = Pdf_Origin(line)
+                    else:
+                        self.messages('Page %s has multiple origins' % page_number)
                 elif '(scale' in line.lower():
-                    p.scales.append(Pdf_Scale(line, page_number))
+                    if pdf_page.scale is None:
+                        pdf_page.scale = Pdf_Scale(line)
+                    else:
+                        self.messages('Page %s has multiple scales' % page_number)
                 elif (re.search('Subtype ?/Polygon', line) and not
                     'PolygonCloud' in line):
-                    p.polygons.append(Pdf_Polygon(line, page_number))
+                    pdf_page.polygons.append(Pdf_Polygon(line))
 
-    def verify_specials(self):
-        '''Here we verify each page has one origin and one scale, and the origins
-        are uniquly named, THEN we can map the origin name to the page'''
+    def __verify_specials(self):
 
-        page_names = []
-        for name, page in self.page_numbers.items():
+        '''Verify contents of each page'''
 
-            # check origins
-            if len(page.origins) != 1:
-                self.messages.append('Page %s has %s origins' % (name, len(page.origins)))
-            else:
-                page.name = page.origins[0].name
-                if page.name in page_names:
-                    self.messages.append('Multiple Origins with name %s' % (page.name))
-                page.origins[0].set_orientation()
+        valid_poly_attrs = ['Z', 'H', 'HP', 'PH', 'X', 'Y']
 
-            # check scales
-            if len(page.scales) != 1:
-                self.messages.append('Page %s has %s scales' % (name, len(page.scales)))
-
-            # check duplicate spaces
-            page_polygons = []
-            for polygon in page.polygons:
-                if polygon.name in page_polygons:
-                    self.messages.append('Duplicate polygon %s - Page: %s' % (
-                        polygon.name, page.name))
-                else:
-                    page_polygons.append(polygon.name)
-
-    def make_page_dict(self):
-        '''Map page name to Pdf_File object in pages{}'''
-        for number, page in self.page_numbers.items():
-            self.pages[page.name] = page
-
-    def verify_polygons(self):
-        '''Ensure the polygons were filled out correctly'''
-        valid_poly_attrs = ['Z', 'H', 'HP', 'PH']
         for name, page in self.pages.items():
+
+            # check spaces
+            floor_name_counter = Counter()
+            space_names_set = set()
             for polygon in page.polygons:
+                if not polygon.name.count('-') == 1:
+                    self.messages.append('Space %s has wrong number of hyphens' % (polygon.name))
+
+                if polygon.name in space_names_set:
+                    self.messages.append('Space %s is defined multiple times' % (polygon.name))
+                else:
+                    space_names_set.add(polygon.name)
+                floor_name_counter[polygon.name.split('-')[0]] += 1
+
                 for key in polygon.attrs.keys():
                     if not key in valid_poly_attrs:
                         self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
-    def define_floors(self):
-        '''Read the json file which contains the floor definitions'''
+            floor_name = floor_name_counter.most_common(1)[0][0]
+            if len(floor_name_counter) > 1:
+                self.messages.append('Floor %s has spaces assigned to multiple floors' % (floor_name))
 
-        attrs = OrderedDict([('x',0), ('y',0), ('z',0),
-            ('floor height',None), ('plenum height',None),
-            ('default plenum',False)])
+            for key in page.origin.attrs:
+                if not key in valid_poly_attrs:
+                    self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
+           
+            # assign floor name from dominent space
+            page.name = floor_name
+        
+        for name, count in Counter([page.name for page in self.pages.values()]).items():
+            if count > 1:
+                self.messages.append('Floor %s is defined multiple items' % name)
 
-        if os.path.exists(ref.spaces_json):
-            with open(ref.spaces_json) as f:
-                self.spec = json.load(f, object_pairs_hook=OrderedDict)
-        else:
-            self.spec = OrderedDict()
+    def create(self):
 
-        for page_name in self.pages.keys():
-            print 'Page %s' % page_name
+        '''Create the building from pdf'''
 
-            if not page_name in self.spec:
-                self.spec[page_name] = OrderedDict()
+        b = eo.Building()
 
-            for attr, default in attrs.items():
-                if not attr in self.spec[page_name]:
-                    resp = raw_input(' %s [%s] >> ' % (attr, default))
-                    if not resp:
-                        print default
-                        resp = default
-                    elif resp.lower() in ['t', 'true']:
-                        resp = True
-                    elif resp.lower() in ['f', 'false']:
-                        resp = False
-                    else:
-                        try:
-                            resp = float(resp)
-                        except ValueError:
-                            resp = str(resp)
-                    self.spec[page_name][attr] = resp
+        for name, page in self.pages.items():
 
-            # inherit defaults
-            for attr, new_default in self.spec[page_name].items():
-                if attr == 'z':
-                    attrs['z'] = self.spec[page_name]['floor height'] + self.spec[page_name]['z']
-                else:
-                    attrs[attr] = new_default
+            floor = eo.Floor(b, name=page.name)
+            floor.attr['Z'] = page.origin.attrs['Z']
 
-        with open(ref.spaces_json, 'wb') as f:
-            json.dump(self.spec, f, indent=4, separators=(',', ': '))
+            if not page.origin.attrs['HP']:
+                page.origin.attrs['PH'] = 0
 
-    def create_floors(self):
-        '''Create floors'''
+            floor.attr['FLOOR-HEIGHT'] = page.origin.attrs['H']
+            floor.attr['SPACE-HEIGHT'] = \
+                page.origin.attrs['H'] - page.origin.attrs['PH']
+            floor.attr['SHAPE'] = 'NO-SHAPE'
 
-        print self.spec
-
-        for floor_name, spec_attrs in self.spec.items():
-            print floor_name
-            floor = eo.Floor(self.b, name=str(floor_name))
-            floor.attr['Z'] = self.spec[floor_name]['z']
-
-            floor.attr['FLOOR-HEIGHT'] = self.spec[floor_name]['floor height']
-            floor.attr['SPACE-HEIGHT'] = (floor.attr['FLOOR-HEIGHT'] -
-                self.spec[floor_name]['plenum height'])
-
-    def process_polygons(self):
-
-        for page_name, page in self.pages.items():
             for fdf_polygon in page.polygons:
                 name = '"%s-%s_poly"' % (page.name, fdf_polygon.name)
-                polygon = eo.Polygon(self.b, name=name)
-                polygon.vertices = self.set_vertices(page, fdf_polygon)
-                self.create_space(page, fdf_polygon, polygon)
+                polygon = eo.Polygon(b, name=name)
+                polygon.vertices = self.__set_vertices(page, fdf_polygon)
+                self.__create_space(b, floor, fdf_polygon, polygon, page)
 
-    def set_vertices(self, page, fdf_polygon):
+        return b
+
+    def __set_vertices(self, page, fdf_polygon):
+
         '''Set vertices for the newly created polygon'''
 
-        reversed = page.origins[0].reversed
-        x_mirror = page.origins[0].x_mirror
-        y_mirror = page.origins[0].y_mirror
-        factor = page.scales[0].factor
-        origin_x = page.origins[0].x
-        origin_y = page.origins[0].y
+        reversed = page.origin.reversed
+        x_mirror = page.origin.x_mirror
+        y_mirror = page.origin.y_mirror
+        factor = page.scale.factor
+        origin_x = page.origin.x
+        origin_y = page.origin.y
 
         vertices = []
-        x_offset = self.spec[page.name]['x']
-        y_offset = self.spec[page.name]['y']
+        x_offset = page.origin.attrs.get('X', 0)
+        y_offset = page.origin.attrs.get('Y', 0)
         for verticy in fdf_polygon.vertices:
             if not reversed:
                 x = (factor * (verticy[0]-origin_x) * x_mirror +
@@ -233,82 +160,88 @@ class Pdf_File(object):
             vertices.append([x,y])
         return vertices
 
-    def create_space(self, page, fdf_polygon, polygon):
+    def __create_space(self, b, floor, fdf_polygon, polygon, page):
 
-        floor = self.b.objects[page.name]
+        '''Convert polygon to space'''
 
-        z = fdf_polygon.attrs.get('Z')
-        h = fdf_polygon.attrs.get('H')
-
-        if h != None:
-            floor_height = float(fdf_polygon.attrs['H'])
-        elif z != None:
-            floor_height = floor.attr['SPACE-HEIGHT'] - float(z)
+        if 'Z' in fdf_polygon.attrs:
+            space_z = fdf_polygon.attrs['Z']
         else:
-            floor_height = self.spec[page.name]['floor height']
+            space_z = 0
 
-        if 'PH' in fdf_polygon.attrs:
-            plenum_height = float(fdf_polygon.attrs['PH'])
+        if 'H' in fdf_polygon.attrs:
+            total_height = fdf_polygon.attrs['H']
         else:
-            plenum_height = self.spec[page.name]['plenum height']
+            total_height = floor.attr['FLOOR-HEIGHT']
 
-        if not plenum_height:
+        if 'HP' in fdf_polygon.attrs:
+            has_plenum = fdf_polygon.attrs['HP']
+        else:
+            has_plenum = page.origin.attrs['HP']
+
+        if has_plenum:
+            if 'PH' in fdf_polygon.attrs:
+                plenum_height = fdf_polygon.attrs['PH']
+            elif 'PH' in page.origin.attrs:
+                plenum_height = page.origin.attrs['PH']
+        else:
+            plenum_height = 0
+
+        space_height = total_height - plenum_height 
+
+        if abs(plenum_height) < 0.1:
             has_plenum = False
-        elif 'HP' in fdf_polygon.attrs:
-            has_plenum = fdf_polygon.attrs['HP'][0] == 'Y'
-        else:
-            has_plenum = self.spec[page.name]['default plenum']
 
-        space_height = floor_height - plenum_height
-        if z != None:
-            plenum_z = float(z) + space_height
-        else:
-            plenum_z = space_height
+        plenum_z = space_z + space_height
 
-        name = '"' + page.name + '-' + fdf_polygon.name + '"'
-        space = eo.Space(self.b, name, 'SPACE', floor)
+        name = '"' + fdf_polygon.name + '"'
+        space = eo.Space(b, name, 'SPACE', floor)
 
         space.attr['ZONE-TYPE'] = 'CONDITIONED'
         space.attr['POLYGON'] = polygon.name
         space.attr['SHAPE'] = 'POLYGON'
 
         if abs(space_height - floor.attr['SPACE-HEIGHT']) > 0.1:
-            space.attr['H'] = space_height
+            space.attr['HEIGHT'] = space_height
 
-        if z:
-            space.attr['Z'] = z
+        if abs(space_z) > 0.1:
+            space.attr['Z'] = space_z
 
-        if floor.has_plenum():
-            name = name[:-1] + '_p"'
-            plenum_space = eo.Space(self.b, name=name)
+        plenum_space = None
+
+        if has_plenum:
+            plenum_name = name[:-1] + '_p"'
+            plenum_space = eo.Space(b, plenum_name, 'SPACE', floor)
             plenum_space.attr['ZONE-TYPE'] = 'PLENUM'
             plenum_space.attr['POLYGON'] = polygon.name
-            if abs(plenum_height - (floor.attr['FLOOR-HEIGHT']-floor.attr['SPACE-HEIGHT'])) > 0.1:
-                plenum_space.attr['H'] = plenum_space_height
+            plenum_space.attr['SHAPE'] = 'POLYGON'
+            if abs(plenum_height - (floor.attr['FLOOR-HEIGHT'] - floor.attr['SPACE-HEIGHT'])) > 0.1:
+                plenum_space.attr['HEIGHT'] = plenum_height
             if abs(plenum_z - floor.attr['SPACE-HEIGHT']) > 0.1:
                 plenum_space.attr['Z'] = plenum_z
 
+
 class Pdf_Page(object):
 
-    def __init__(self, page_number):
-        self.page_number = page_number
+    def __init__(self):
         self.polygons = []
-        self.origins = []
-        self.scales = []
+        self.origin = None
+        self.scale = None
 
 
 class Pdf_Origin(object):
 
-    def __init__(self, line, page):
+    def __init__(self, line):
 
-        self.page = page
-        self.line = line
-        self.name = get_fdf_attribute('T', line)[1:-1].split()[1]
+        self.attrs = {}
+
         vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
         vl = [float(n) for n in vertices_string.split()]
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
+        self.name, self.attrs = process_name(get_fdf_attribute('T', line))
 
-    def set_orientation(self):
+
+        # set orientation
 
         pt1 = [self.vertices[0][0], self.vertices[0][1]]
         pt2 = [self.vertices[1][0], self.vertices[1][1]]
@@ -333,79 +266,112 @@ class Pdf_Origin(object):
 
 class Pdf_Scale(object):
 
-    def __init__(self, line, page):
+    def __init__(self, line):
 
-        self.page = page
-        self.line = line
-        self.length = convert_feet(get_fdf_attribute('T', line)[7:-2])
+        self.name, _, value = get_fdf_attribute('T', line).partition(' ')
+        self.length = convert_feet(value)
         pl = [float(n) for n in get_fdf_attribute('L', line)[1:-1].split()]
-        self.start, self.end = [pl[0], pl[1]], [pl[2], pl[3]]
-        self.distance = distance(self.start, self.end)
+        self.distance = distance([pl[0], pl[1]], [pl[2], pl[3]])
         self.factor = self.length/self.distance
 
 
 class Pdf_Polygon(object):
 
-    def __init__(self, line, page):
+    def __init__(self, line):
 
-        self.page = page
-        self.line = line
         self.attrs = {}
 
         vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
+
         vl = [float(n) for n in vertices_string.split()]
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)][:-1]
 
-        name = get_fdf_attribute('T', line)
-        name_clean = re.sub(r'[\[\]\;\(\)]', ' ', name)
-        name_split = name_clean.split()
-        self.name = name_split[0]
-        for pair in name_split[1:]:
-            k, v = pair.split(':')
-            self.attrs[k] = v
+        self.name, self.attrs = process_name(get_fdf_attribute('T', line))
 
 
-def adjust_pdf_x_change(fdf_file):
-    with open(fdf_file, 'r') as fdf:
+def process_name(s):
+
+    fields = re.sub(r'[\[\]\;\(\)]', ' ', s).split()
+    
+    name = fields[0]
+    attrs = {}
+
+    for pair in fields[1:]:
+        key, value = pair.split(':')
+        if key != 'HP':
+            attrs[key] = float(value)
+        else:  
+            attrs[key] = value.upper().startswith('Y')
+
+    return name, attrs
+
+def adjust_pdf_x_change(input_file, output_file):
+
+    '''Fix PDF X-change's has a crappy fdf output format'''
+
+    with open(input_file, 'r') as fdf:
         text = fdf.read()
 
-    text = text.replace('/T (', '/T (')
-
-    # PDF exchange mopdfications
-    text = re.sub(r'(/\w+) ', r'\1', text)
+    # PDF exchange modfications
     text = text.replace('\n', ' ')
     text = text.replace('obj <<', 'obj\n<<')
     text = text.replace('endobj', '\nendobj\n')
-    text = text.replace(' /', '/')
-    with open('temp.fdf', 'w') as f:
+    with open(output_file, 'w') as f:
         f.write(text)
 
-def main():
 
-    client = utils.choices(ref.clients)
+def from_fdf(fdf_file, seed_file):
+
+    '''Create a building from an fdf file'''
+
     project_name = os.getcwd().split(os.sep)[-1]
-    seed_file = utils.client_seed_file(client)
-    fdf_file = 'Takeoffs.fdf'
-    #adjust_pdf_x_change(fdf_file)
+    temp_fdf_file = 'temp.fdf'
+    
+    adjust_pdf_x_change(fdf_file, temp_fdf_file)
 
     with open(project_name + '.pd2', 'wb') as f:
         f.write(utils.project_pd2_text(project_name))
 
-    seed_building = eo.Building()
-    seed_building.load(seed_file)
-    seed_building.dump(project_name.lower() + '.inp')
+    b = eo.Building()
+    b.load(seed_file)
 
-    pdf = Pdf_File(fdf_file)
-    pdf.define()
-    pdf.create()
+    pdf = Pdf_File(temp_fdf_file)
+    if pdf.messages:
+        for message in pdf.messages:
+            print message
+        return
+        
+    pdf_building = pdf.create()
 
-    pdf.b.extend(seed_building)
-    pdf.b.dump(project_name.lower() + '.inp')
+    b.extend(pdf_building)
 
-    print '\n'.join(pdf.messages)
+    if pdf.messages:
+        for message in pdf.messages:
+            print message
+        raw_input()
+
+    return b
+
+def create(fdf, seed_file):
+
+    '''Helper to dump building from fdf to prescribed input file name'''
+
+    b = from_fdf(fdf, seed_file)
+    b.dump(utils.input_file_name())
+
+
+def main():
+
+    '''Command line version of creating a building from fdf'''
+
+
+    fdf_file = sys.argv[1]
+    if len(sys.argv) == 3:
+        client = sys.argv[2]
+    else:
+        client = 'none'
+
+    from_fdf(fdf_file, client)
 
 if __name__ == '__main__':
     main()
-
-
-#pd2Seed = 'E:\\Files\\Documents\\Jared\\Work\\DMI\\eQuest\\Scripts\\seed.pd2'
