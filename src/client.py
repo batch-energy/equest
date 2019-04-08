@@ -67,4 +67,7 @@ def get_client_construction():
     return construction
 
 def get_client_glass():
-    return '"EXTERIOR GLASS"'
+    if get_client() == 'TNZ':
+        return '"F W"'
+    else:
+        return '"EXTERIOR GLASS"'

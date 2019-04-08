@@ -1439,9 +1439,11 @@ class Space(Object):
                 self.polygon.points[verticy%self.count_vertices()])
 
     def all_i_walls(self): # include ones for which this is the other space
-        return [i_wall for i_wall in self.b.objects['INTERIOR-WALL']
-            if i_wall.parent.name == self.name or
-            i_wall.get('NEXT-TO') == self.name]
+        return self.i_walls() + self.i_walls_via_next_to()
+
+    def i_walls_via_next_to(self):
+        return [i_wall for i_wall in self.b.kinds('INTERIOR-WALL').values()
+            if i_wall.next_to().name == self.name]
 
     def i_walls(self):
         return [wall for wall in self.children if wall.kind == 'INTERIOR-WALL']
@@ -1507,6 +1509,49 @@ class Space(Object):
     def has_windows(self):
         return any([e.has_windows() for e in self.e_walls()])
 
+    def combine_vertical(self, other):
+
+        deletes = [other.name, other.zone().name]
+
+        # see if the other
+        for i_wall in self.i_walls():
+            if i_wall.next_to().name == other.name:
+                deletes.append(i_wall.name)
+
+        for wall in other.e_walls() + other.u_walls() + other.i_walls():
+
+            if wall.attr.get('NEXT-TO') == self.name:
+                deletes.append(wall.name)
+                continue
+
+            z = wall.z_global() - self.z_global()
+            if wall.is_vertical():
+                x = wall.x()
+                y = wall.y()
+                height = wall.height()
+                width = wall.width()
+                angle =  wall.angle()
+            else:
+                polygon_name = wall.polygon().name
+
+            self.adopt(wall)
+
+            wall.attr['Z'] = z
+            if wall.is_vertical():
+                wall.attr['X'] = x
+                wall.attr['Y'] = y
+                wall.attr['HEIGHT'] = height
+                wall.attr['WIDTH'] = width
+                wall.attr['AZIMUTH'] = angle
+                wall.attr.pop('LOCATION')
+            else:
+                wall.attr['POLYGON'] = polygon_name
+
+        for name in deletes:
+            print 'deleting ' + name
+            self.b.objects[name].delete()
+
+
 class Wall(Object):
 
     def __init__ (self, b, name, kind, parent):
@@ -1541,7 +1586,7 @@ class Wall(Object):
         if 'Z' in self.attr:
             return float(self.attr['Z'])
         elif self.get('LOCATION') == 'TOP':
-            return self.parent.get('Z')
+            return self.parent.height()
         else:
             return self.get('Z')
 
@@ -1586,6 +1631,10 @@ class Wall(Object):
             return self.get('WIDTH')
         else:
             return e_math.distance(*self.get_vertices())
+
+    @property
+    def shape(self):
+        return self.get('SHAPE')
 
     def get_side_number(self):
         if 'SPACE-' in self.get('LOCATION'):
