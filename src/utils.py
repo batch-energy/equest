@@ -110,7 +110,7 @@ def choices(l, quit=False):
 
     while True:
         for i, choice in enumerate(l, 1):
-            print ('%s - %s') % (i, choice)
+            print ('  %s - %s') % (i, choice)
         print
         resp = raw_input('  > ')
         if resp:
@@ -125,3 +125,6 @@ def is_number(s):
         return True
     except ValueError:
         return False
+
+def input_file_name():
+    return os.getcwd().split(os.sep)[-1] + '.inp'
