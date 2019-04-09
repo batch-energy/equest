@@ -1,4 +1,4 @@
-from collections import OrderedDict, Counter
+from collections import OrderedDict, Counter, defaultdict
 import re
 import sys
 import os
@@ -8,6 +8,7 @@ import eo
 import utils
 import ref
 
+import PyPDF2
 
 def get_fdf_attribute(attr, line):
     for part in line.split('/'):
@@ -20,28 +21,35 @@ class Pdf_File(object):
 
     def __init__(self, pdf_path):
         self.pdf_path = pdf_path
+        self.annotations = defaultdict(list)
         self.pages = OrderedDict()
         self.messages = []
 
-        lines = []
-        with open(self.pdf_path, 'rb') as f:
-            lines = [line.replace('<<', '').replace('>>', '').strip()
-                for line in f if line.startswith('<< ')]
-
-        self.__parse(lines)
+        self.__define_annotations()
+        self.__build()
         self.__verify_specials()
         
         if self.messages:
             return
 
-    def __parse(self, lines):
+    def __define_annotations(self):
 
-        '''Parse lines in fdf, make page objects'''
+        '''Assign annotations from pdf'''
 
-        for line in lines:
-            page_number = get_fdf_attribute('Page', line)
+        input = PyPDF2.PdfFileReader(open(self.pdf_path, "rb"))
 
-            if page_number:
+        for i in range(input.getNumPages()) :
+            for annot in input.getPage(i).get('/Annots', []):
+                self.annotations[i].append(annot.getObject())
+
+
+    def __build(self):
+
+        '''Build PDF File object from pdf annotations'''
+
+        for page_number, annotations in self.annotations.items():
+
+            for annotation in annotations:
 
                 if not page_number in self.pages:
                     # Make new page if page number is new
@@ -51,19 +59,18 @@ class Pdf_File(object):
                     # Use exsting if page numebr exists
                     pdf_page = self.pages[page_number]
 
-                if '(origin' in line.lower():
+                if annotation.get('/T', '').lower().startswith('origin'):
                     if pdf_page.origin is None:
-                        pdf_page.origin = Pdf_Origin(line)
+                        pdf_page.origin = Pdf_Origin(annotation)
                     else:
                         self.messages('Page %s has multiple origins' % page_number)
-                elif '(scale' in line.lower():
+                elif annotation.get('/T', '').lower().startswith('scale'):
                     if pdf_page.scale is None:
-                        pdf_page.scale = Pdf_Scale(line)
+                        pdf_page.scale = Pdf_Scale(annotation)
                     else:
                         self.messages('Page %s has multiple scales' % page_number)
-                elif (re.search('Subtype ?/Polygon', line) and not
-                    'PolygonCloud' in line):
-                    pdf_page.polygons.append(Pdf_Polygon(line))
+                elif annotation.get('/Subtype') == '/Polygon':
+                    pdf_page.polygons.append(Pdf_Polygon(annotation))
 
     def __verify_specials(self):
 
@@ -148,14 +155,14 @@ class Pdf_File(object):
         y_offset = page.origin.attrs.get('Y', 0)
         for verticy in fdf_polygon.vertices:
             if not reversed:
-                x = (factor * (verticy[0]-origin_x) * x_mirror +
+                x = (factor * float(verticy[0]-origin_x) * x_mirror +
                     x_offset)
-                y = (factor * (verticy[1]-origin_y) * y_mirror +
+                y = (factor * float(verticy[1]-origin_y) * y_mirror +
                     y_offset)
             else:
-                x = (factor * (verticy[1]-origin_x) * x_mirror +
+                x = (factor * float(verticy[1]-origin_x) * x_mirror +
                     x_offset)
-                y = (factor * (verticy[0]-origin_y) * y_mirror +
+                y = (factor * float(verticy[0]-origin_y) * y_mirror +
                     y_offset)
             vertices.append([x,y])
         return vertices
@@ -231,14 +238,13 @@ class Pdf_Page(object):
 
 class Pdf_Origin(object):
 
-    def __init__(self, line):
+    def __init__(self, annotation):
 
         self.attrs = {}
 
-        vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
-        vl = [float(n) for n in vertices_string.split()]
+        vl = annotation.get('/Vertices')
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
-        self.name, self.attrs = process_name(get_fdf_attribute('T', line))
+        self.name, self.attrs = process_name(annotation.get('/T'))
 
 
         # set orientation
@@ -266,27 +272,25 @@ class Pdf_Origin(object):
 
 class Pdf_Scale(object):
 
-    def __init__(self, line):
+    def __init__(self, annotation):
 
-        self.name, _, value = get_fdf_attribute('T', line).partition(' ')
+        self.name, _, value = annotation.get('/T').partition(' ')
         self.length = convert_feet(value)
-        pl = [float(n) for n in get_fdf_attribute('L', line)[1:-1].split()]
+        pl = annotation.get('/L')
         self.distance = distance([pl[0], pl[1]], [pl[2], pl[3]])
         self.factor = self.length/self.distance
 
 
 class Pdf_Polygon(object):
 
-    def __init__(self, line):
+    def __init__(self, annotation):
 
         self.attrs = {}
 
-        vertices_string = get_fdf_attribute('Vertices', line)[1:-1]
-
-        vl = [float(n) for n in vertices_string.split()]
+        vl = annotation.get('/Vertices')
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)][:-1]
 
-        self.name, self.attrs = process_name(get_fdf_attribute('T', line))
+        self.name, self.attrs = process_name(annotation.get('/T'))
 
 
 def process_name(s):
@@ -305,29 +309,12 @@ def process_name(s):
 
     return name, attrs
 
-def adjust_pdf_x_change(input_file, output_file):
 
-    '''Fix PDF X-change's has a crappy fdf output format'''
+def from_pdf(pdf_file, seed_file):
 
-    with open(input_file, 'r') as fdf:
-        text = fdf.read()
-
-    # PDF exchange modfications
-    text = text.replace('\n', ' ')
-    text = text.replace('obj <<', 'obj\n<<')
-    text = text.replace('endobj', '\nendobj\n')
-    with open(output_file, 'w') as f:
-        f.write(text)
-
-
-def from_fdf(fdf_file, seed_file):
-
-    '''Create a building from an fdf file'''
+    '''Create a building from an pdf file'''
 
     project_name = os.getcwd().split(os.sep)[-1]
-    temp_fdf_file = 'temp.fdf'
-    
-    adjust_pdf_x_change(fdf_file, temp_fdf_file)
 
     with open(project_name + '.pd2', 'wb') as f:
         f.write(utils.project_pd2_text(project_name))
@@ -335,7 +322,7 @@ def from_fdf(fdf_file, seed_file):
     b = eo.Building()
     b.load(seed_file)
 
-    pdf = Pdf_File(temp_fdf_file)
+    pdf = Pdf_File(pdf_file)
     if pdf.messages:
         for message in pdf.messages:
             print message
@@ -352,26 +339,26 @@ def from_fdf(fdf_file, seed_file):
 
     return b
 
-def create(fdf, seed_file):
+def create(pdf, seed_file):
 
-    '''Helper to dump building from fdf to prescribed input file name'''
+    '''Helper to dump building from pdf to prescribed input file name'''
 
-    b = from_fdf(fdf, seed_file)
+    b = from_pdf(pdf, seed_file)
     b.dump(utils.input_file_name())
 
 
 def main():
 
-    '''Command line version of creating a building from fdf'''
+    '''Command line version of creating a building from pdf'''
 
 
-    fdf_file = sys.argv[1]
+    pdf_file = sys.argv[1]
     if len(sys.argv) == 3:
         client = sys.argv[2]
     else:
         client = 'none'
 
-    from_fdf(fdf_file, client)
+    from_pdf(pdf_file, client)
 
 if __name__ == '__main__':
     main()

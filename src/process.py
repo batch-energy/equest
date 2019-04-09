@@ -1,10 +1,10 @@
 import os
 import eo, e_math, time, im, utils
 
-def phase_0():
+def phase_0(pdf_file):
 
     seed_file = [f for f in os.listdir('.') if f.startswith('seed_')][0] 
-    im.create('Takeoffs.fdf', seed_file)
+    im.create(pdf_file, seed_file)
 
 def phase_1(b):
 
@@ -38,7 +38,7 @@ def phase_4(b):
     
 def main():
 
-    phase_0()
+    phase_0('Takeoffs.pdf')
 
     input_file = utils.input_file_name()
 
