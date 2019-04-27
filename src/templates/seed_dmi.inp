@@ -462,8 +462,6 @@ $ ---------------------------------------------------------
 $              Polygons
 $ ---------------------------------------------------------
 
-"Dummy Poly" = POLYGON
-   ..
 
 $ ---------------------------------------------------------
 $              Wall Parameters
@@ -581,12 +579,6 @@ SET-DEFAULT FOR WINDOW
    C-WELL-WIDTH     = 0
    ..
 
-"Dummy Floor" = FLOOR
-   Z                = 0.0
-   SHAPE            = NO-SHAPE
-   FLOOR-HEIGHT     = 16.5
-   SPACE-HEIGHT     = 12.5
-   ..
 
 
 
