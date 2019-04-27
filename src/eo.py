@@ -728,7 +728,8 @@ class Building(object):
                     try:
                         running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
                     except TopologicalError as e:
-                        msg = 'This line fails when a space has very narrow ' + \
+                        msg = 'Shapely failure making roof for %s\n' % space.name + \
+                              'This line fails when a space has very narrow ' + \
                               ' corridors connecting larger pieces. ' + \
                               '"Combine close vertices collapes the corridor\n\n'
                         print msg
@@ -794,7 +795,8 @@ class Building(object):
                     try:
                         running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
                     except TopologicalError as e:
-                        msg = 'This line fails when a space has very narrow ' + \
+                        msg = 'Shapely failure making floor for %s\n' % space.name + \
+                              'This line fails when a space has very narrow ' + \
                               ' corridors connecting larger pieces. ' + \
                               '"Combine close vertices collapes the corridor\n\n'
                         print msg
@@ -862,7 +864,8 @@ class Building(object):
                     try:
                         ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
                     except TopologicalError as e:
-                        msg = 'This line fails when a space has very narrow ' + \
+                        msg = 'Shapely failure making ceiling for %s\n' % space.name + \
+                              'This line fails when a space has very narrow ' + \
                               ' corridors connecting larger pieces. ' + \
                               '"Combine close vertices collapes the corridor\n\n'
                         print msg

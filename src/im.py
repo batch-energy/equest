@@ -120,7 +120,7 @@ class Pdf_File(object):
 
         for name, page in self.pages.items():
 
-            floor = eo.Floor(b, name=page.name)
+            floor = eo.Floor(b, name=utils.wrap(page.name))
             floor.attr['Z'] = page.origin.attrs['Z']
 
             if not page.origin.attrs['HP']:
@@ -132,7 +132,7 @@ class Pdf_File(object):
             floor.attr['SHAPE'] = 'NO-SHAPE'
 
             for fdf_polygon in page.polygons:
-                name = '"%s-%s_poly"' % (page.name, fdf_polygon.name)
+                name = '"%s_poly"' % (fdf_polygon.name)
                 polygon = eo.Polygon(b, name=name)
                 polygon.vertices = self.__set_vertices(page, fdf_polygon)
                 self.__create_space(b, floor, fdf_polygon, polygon, page)
@@ -165,6 +165,11 @@ class Pdf_File(object):
                 y = (factor * float(verticy[0]-origin_y) * y_mirror +
                     y_offset)
             vertices.append([x,y])
+
+        # The takesoffs may have open or closed polygons definitions
+        if distance(vertices[0], vertices[-1]) < 0.5:
+            del vertices[-1]
+
         return vertices
 
     def __create_space(self, b, floor, fdf_polygon, polygon, page):
@@ -286,9 +291,8 @@ class Pdf_Polygon(object):
     def __init__(self, annotation):
 
         self.attrs = {}
-
         vl = annotation.get('/Vertices')
-        self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)][:-1]
+        self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
 
         self.name, self.attrs = process_name(annotation.get('/T'))
 
