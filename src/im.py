@@ -170,6 +170,16 @@ class Pdf_File(object):
         if distance(vertices[0], vertices[-1]) < 0.5:
             del vertices[-1]
 
+        for i, pt1 in enumerate(vertices):
+            for j, pt2 in enumerate(vertices):
+                if i >= j:
+                    continue
+                if distance(pt1, pt2) < 0.5:
+                    self.messages.append(('Points in polygon %s has vertices'
+                        ' %s and %s defined too closely together ' % (
+                        fdf_polygon.name, str(point)))
+
+
         return vertices
 
     def __create_space(self, b, floor, fdf_polygon, polygon, page):
