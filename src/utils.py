@@ -44,7 +44,7 @@ def splitter(s, max):
     return '\n'.join(lines)
 
 def wrap(s):
-    return '"' + s + '"'
+    return '"' + str(s) + '"'
 
 def unwrap(s):
     return s[1:-1]
