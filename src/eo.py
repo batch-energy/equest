@@ -564,7 +564,7 @@ class Building(object):
                 for i, point in enumerate(space.polygon.vertices)])
             space.polygon.delete_sequential_dupes()
 
-    def combine_close_vertices_within_floor(self, tol=1):
+    def combine_close_vertices_within_floor(self, tol=0.5):
 
         '''Combines space polygon vertices within a floor if they are close'''
 
