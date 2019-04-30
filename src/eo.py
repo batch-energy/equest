@@ -38,11 +38,18 @@ class Building(object):
         text = self.__clean_file(text)
         self.__objectify(self.__split_objects(text))
 
-    def kinds(self, kind):
-        '''OrderedDict of objects only of kind'''
-        kinds = OrderedDict()
+    def kinds(self, kind_or_kinds):
+        '''OrderedDict of objects only of kind or kinds'''
+
+        if isinstance(kind_or_kinds, list):
+            target_kinds = kind_or_kinds
+        else:
+            target_kinds = [kind_or_kinds]
+
+        kinds = {}
+
         for name, obj in self.objects.items():
-            if obj.kind == kind:
+            if obj.kind in target_kinds:
                 kinds[name] = obj
         return kinds
 
