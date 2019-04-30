@@ -229,6 +229,9 @@ class Pdf_File(object):
         if abs(space_z) > 0.1:
             space.attr['Z'] = space_z
 
+        if fdf_polygon.activity is not None:
+            space.attr['C-ACTIVITY-DESC'] = '*%s*' % fdf_polygon.activity
+
         plenum_space = None
 
         if has_plenum:
@@ -241,6 +244,7 @@ class Pdf_File(object):
                 plenum_space.attr['HEIGHT'] = plenum_height
             if abs(plenum_z - floor.attr['SPACE-HEIGHT']) > 0.1:
                 plenum_space.attr['Z'] = plenum_z
+            plenum_space.attr['C-ACTIVITY-DESC'] = '*Plenum*'
 
 
 class Pdf_Page(object):
@@ -303,6 +307,12 @@ class Pdf_Polygon(object):
         self.attrs = {}
         vl = annotation.get('/Vertices')
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
+
+        if annotation.get('/Subject', '').lower() != 'polygon':
+            self.activity = annotation.get('/Subj')
+        else:
+            self.activity == None
+        print annotation.get('/Subj', '')
 
         self.name, self.attrs = process_name(annotation.get('/T'))
 
