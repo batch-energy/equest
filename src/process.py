@@ -5,7 +5,7 @@ def phase_0(pdf_file):
 
     print '  Importing from PDF'
     seed_file = [f for f in os.listdir('.') if f.startswith('seed_')][0] 
-    im.create(pdf_file, seed_file)
+    return im.create(pdf_file, seed_file)
 
 def phase_1(b):
 
@@ -47,7 +47,8 @@ def phase_4(b):
 def main():
 
     print
-    phase_0('Takeoffs.pdf')
+    if phase_0('Takeoffs.pdf') is None:
+        return
 
     input_file = utils.input_file_name()
 

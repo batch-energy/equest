@@ -107,6 +107,9 @@ class Pdf_File(object):
            
             # assign floor name from dominent space
             page.name = floor_name
+
+            if page.scale is None:
+                self.messages.append('Page %s has no scale' % (page.name ))
         
         for name, count in Counter([page.name for page in self.pages.values()]).items():
             if count > 1:
@@ -312,7 +315,6 @@ class Pdf_Polygon(object):
             self.activity = annotation.get('/Subj')
         else:
             self.activity == None
-        print annotation.get('/Subj', '')
 
         self.name, self.attrs = process_name(annotation.get('/T'))
 
@@ -349,8 +351,8 @@ def from_pdf(pdf_file, seed_file):
     pdf = Pdf_File(pdf_file)
     if pdf.messages:
         for message in pdf.messages:
-            print message
-        return
+            print ' ', message
+        return None
         
     pdf_building = pdf.create()
 
@@ -358,7 +360,7 @@ def from_pdf(pdf_file, seed_file):
 
     if pdf.messages:
         for message in pdf.messages:
-            print message
+            print ' ', message
         raw_input()
 
     return b
@@ -368,8 +370,12 @@ def create(pdf, seed_file):
     '''Helper to dump building from pdf to prescribed input file name'''
 
     b = from_pdf(pdf, seed_file)
-    b.dump(utils.input_file_name())
-
+    if b is None:
+        print '  Exiting...'
+        return None
+    else:
+        b.dump(utils.input_file_name())
+        return 0
 
 def main():
 
