@@ -136,8 +136,10 @@ class Pdf_File(object):
 
             for fdf_polygon in page.polygons:
                 name = '"%s_poly"' % (fdf_polygon.name)
-                polygon = eo.Polygon(b, name=name)
-                polygon.vertices = self.__set_vertices(page, fdf_polygon)
+                vertices = self.__set_vertices(page, fdf_polygon)
+                polygon = eo.Polygon(b, name=name, vertices=vertices)
+                if not polygon.is_ccw():
+                    polygon.reverse()
                 self.__create_space(b, floor, fdf_polygon, polygon, page)
 
         return b

@@ -1207,7 +1207,10 @@ class Polygon(Object):
     def __init__ (self, b, name=None, kind='POLYGON', vertices=None):
         self.b = b
         self.vertices = vertices or []
-        self.shapely_poly = None
+        if vertices:
+            self.regenerate()
+        else:
+            self.shapely_poly = None
         Object.__init__(self, b, name, kind)
         if self.vertices:
             self.regenerate()
