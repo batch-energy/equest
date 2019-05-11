@@ -1164,7 +1164,7 @@ class Object(object):
 
         t += '   ..\n'
 
-        for child in self.children:
+        for child in sorted(self.children, key=operator.attrgetter('name')):
             t += child.write()
 
         return t
