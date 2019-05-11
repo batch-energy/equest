@@ -2010,6 +2010,81 @@ class Comparison():
 
         return base
 
+def sloped_roof(roof, base_point, other_point):
+
+    def angle(p1, p2):
+        x1 = float(p1[0])
+        y1 = float(p1[1])
+        x2 = float(p2[0])
+        y2 = float(p2[1])
+
+        if abs(x2-x1) > abs(y2-y1):
+            baseAngle = math.degrees(math.atan(abs((y2-y1)/(x2-x1))))
+        else:
+            baseAngle = 90 - math.degrees(math.atan(abs((x2-x1)/(y2-y1))))
+
+        if (x2 > x1):
+            if (y2 > y1):
+                a = baseAngle
+            else:
+                a = 360 - baseAngle
+        else:
+            if (y2 > y1):
+                a = 180 - baseAngle
+            else:
+                a = 180 + baseAngle
+        return(a)
+
+    def translate(x1, y1, z1, x2, y2, z2, x, y): # translates x,y coordinate system to new vector (for roofs)
+
+        x1 = float(x1)
+        y1 = float(y1)
+        z1 = float(z1)
+        x2 = float(x2)
+        y2 = float(y2)
+        z2 = float(z2)
+        x = float(x)
+        y = float(y)
+
+        va = angle((x1, y1), (x2, y2))               # vector angle
+        pa = angle((x1, y1), (x, y))           # point angle
+        da = 90 - (va - pa)                      # translated angle
+
+        pd = e_math.distance([x1, y1], [x, y])     # point distance
+        vd = e_math.distance([x1, y1], [x2, y2])   # vector distance
+
+        za = math.degrees(math.atan((z2-z1)/vd)) # translated angle
+
+        xt = math.cos(math.radians(da)) * pd
+        yt = math.sin(math.radians(da)) * pd / math.cos(math.radians(za))
+        zt = z1 + (yt/vd) * (z2 - z1)
+        t = math.degrees(math.atan((z2-z1)/vd))
+        a = angle((x1,y1),(x2,y2)) - 90
+
+        return xt, yt, zt, t, (180-a)%360
+
+    polygon = roof.polygon()
+
+    x1, y1, z1 = base_point
+    x2, y2, z2 = other_point
+
+    new_vertices = []
+    for v in polygon.vertices:
+        x,y,z,t,az = translate(x1, y1, z1, x2, y2, z2, v[0], v[1])
+        new_vertices.append([x,y])
+
+    new_polygon=Polygon(roof.b, name=utils.rewrap(roof.name, '_poly'), vertices=new_vertices)
+
+    roof.attr['X'] = x1
+    roof.attr['Y'] = y1
+    roof.attr['Z'] = float(z1) - roof.parent.z_global()
+    roof.attr['AZIMUTH'] = az
+    roof.attr['TILT'] = t
+    roof.attr['POLYGON'] = new_polygon.name
+
+def sloped_wall(wall, base_point, other_point):
+    pass
+
 def merge(base, other):
 
     for name, object in other.objects.items():
