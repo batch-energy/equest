@@ -1127,6 +1127,15 @@ class Object(object):
                 n, v = line, None
             self.attr[n] = v
 
+    def clone(self, name):
+
+        other = copy.deepcopy(self)
+        other.name = name
+        self.b.objects[name] = other
+        other.parent=self.parent
+        other.parent.children.append(other)
+        return other
+
     def adopt(self, child):
         '''move from one parent to another'''
         child.parent.children.remove(child)
