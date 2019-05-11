@@ -837,11 +837,6 @@ SET-DEFAULT FOR ZONE
    HW-LOOP          = "HW Loop"
    ..
 
-"Dummy System" = SYSTEM
-   TYPE             = VAVS
-   HEAT-SOURCE      = NONE
-   CHW-LOOP         = "DEFAULT-CHW"
-   ..
 
 
 $ *********************************************************
