@@ -1643,7 +1643,11 @@ class Wall(Object):
             return self.parent.height()
 
     def width(self):
-        if (self.get('POLYGON') or self.special_horizontal()):
+        if self.get('POLYGON'):
+            polygon = self.b.objects[self.get('POLYGON')]
+            return max([x for x, y in polygon.vertices])
+            return None
+        elif self.special_horizontal():
             return None
         elif self.get('WIDTH'):
             return self.get('WIDTH')
