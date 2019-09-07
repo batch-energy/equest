@@ -222,6 +222,12 @@ class Pdf_File(object):
         plenum_z = space_z + space_height
 
         name = '"' + fdf_polygon.name + '"'
+
+        if len(name) > 23:
+            self.messages.append(
+                'Name %s is too long, shorten by %s' %
+                (name, len(name) - 23))
+
         space = eo.Space(b, name, 'SPACE', floor)
 
         space.attr['ZONE-TYPE'] = 'CONDITIONED'
