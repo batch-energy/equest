@@ -1129,15 +1129,6 @@ class Object(object):
                 n, v = line, None
             self.attr[n] = v
 
-    def clone(self, name):
-
-        other = copy.deepcopy(self)
-        other.name = name
-        self.b.objects[name] = other
-        other.parent=self.parent
-        other.parent.children.append(other)
-        return other
-
     def adopt(self, child):
         '''move from one parent to another'''
         child.parent.children.remove(child)
@@ -1745,6 +1736,10 @@ class E_Wall(Wall):
     def __init__ (self, b, name=None, kind='EXTERIOR-WALL', parent=None):
 
         Wall.__init__(self, b, name, kind, parent)
+
+    def clone(self, name):
+        other = E_Wall(self.b, name, parent=self.parent)
+        other.inherit(self)
 
     def create_window(self, name, x=0, y=0, height=None, width=None):
         height = height or self.height()
