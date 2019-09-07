@@ -2077,7 +2077,8 @@ def sloped_roof(roof, base_point, other_point):
         x,y,z,t,az = translate(x1, y1, z1, x2, y2, z2, v[0], v[1])
         new_vertices.append([x,y])
 
-    new_polygon=Polygon(roof.b, name=utils.rewrap(roof.name, '_poly'), vertices=new_vertices)
+    name = utils.rewrap(roof.name, '_poly')
+    new_polygon=Polygon(roof.b, name=name, vertices=new_vertices)
 
     roof.attr['X'] = x1
     roof.attr['Y'] = y1
