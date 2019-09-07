@@ -230,8 +230,6 @@ SET-DEFAULT FOR UNDERGROUND-WALL
    CONSTRUCTION     = "UNDERGROUND WALL CONSTRUCTION"
    ..
 
-"Dummy Floor" = FLOOR
-   ..
 
 
 $ *********************************************************
@@ -361,11 +359,6 @@ $ **               HVAC Systems / Zones                  **
 $ **                                                     **
 $ *********************************************************
 
-"Dummy System" = SYSTEM
-   TYPE             = VAVS
-   HEAT-SOURCE      = NONE
-   CHW-LOOP         = "DEFAULT-CHW"
-   ..
 
 
 $ *********************************************************
