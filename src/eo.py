@@ -1632,7 +1632,10 @@ class Wall(Object):
         return tilt
 
     def height(self):
-        if (self.get('POLYGON') or self.special_horizontal()):
+        if self.get('POLYGON'):
+            polygon = self.b.objects[self.get('POLYGON')]
+            return max([y for x, y in polygon.vertices])
+        elif self.special_horizontal():
             return None
         elif self.get('HEIGHT'):
             return self.get('HEIGHT')
