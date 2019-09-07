@@ -1072,6 +1072,8 @@ class Default(object):
 class Parameter(object):
     def __init__(self, b, name=None, kind=None, parent=None):
         self.b = b
+        self.name = name
+        self.b.parameters[name] = self
 
     def read(self, lines):
         self.name, self.value = [t.strip() for t in lines[1].split('=')]
