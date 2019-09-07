@@ -675,47 +675,47 @@ class Building(object):
 
         '''Splits space where it intersects with adjacent space'''
 
-        added = []
-
         for floor in self.kinds('FLOOR').values():
 
-            polygons = set([space.polygon for space in floor.children])
+            added = True
+            while added:
+                added = False
 
-            points = {
-                (polygon, i):point for polygon in polygons
-                    for i, point in enumerate(polygon.points)}
+                polygons = set([space.polygon for space in floor.children])
 
-            lines = {
-                (polygon, i):line for polygon in polygons
-                    for i, line in enumerate(polygon.lines)}
+                points = {
+                    (polygon, i):point for polygon in polygons
+                        for i, point in enumerate(polygon.points)}
 
-            lookup_move = {}
-            lookup_add = {}
+                lines = {
+                    (polygon, i):line for polygon in polygons
+                        for i, line in enumerate(polygon.lines)}
 
-            # finds at most one point near line
-            for (line_poly, i), line in lines.items():
-                for (point_poly, j), point in points.items():
-                    if (point_poly, j) in lookup_move or line_poly is point_poly:
-                        continue
-                    if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
-                        continue
-                    if point.distance(line) < tol:
-                        p = line.interpolate(line.project(point))
-                        lookup_move[(point_poly, j)] = (p.x, p.y)
-                        lookup_add[(line_poly, i)] = (p.x, p.y)
+                lookup_move = {}
+                lookup_add = {}
 
-            # move close points
-            for polygon in polygons:
-                polygon.set_vertices(
-                    [lookup_move.get((polygon, i), point)
-                    for i, point in enumerate(polygon.vertices)])
+                # finds at most one point near line
+                for (line_poly, i), line in lines.items():
+                    for (point_poly, j), point in points.items():
+                        if (point_poly, j) in lookup_move or line_poly is point_poly:
+                            continue
+                        if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
+                            continue
+                        if point.distance(line) < tol:
+                            p = line.interpolate(line.project(point))
+                            lookup_move[(point_poly, j)] = (p.x, p.y)
+                            lookup_add[(line_poly, i)] = (p.x, p.y)
 
-            # add new points along lines
-            for (poly, i), point in sorted(lookup_add.items(), reverse=True):
-                poly.add_verticy(point, i)
-                added.append((floor, (poly, i)))
+                # move close points
+                for polygon in polygons:
+                    polygon.set_vertices(
+                        [lookup_move.get((polygon, i), point)
+                        for i, point in enumerate(polygon.vertices)])
 
-        return added
+                # add new points along lines
+                for (poly, i), point in sorted(lookup_add.items(), reverse=True):
+                    poly.add_verticy(point, i)
+                    added = True
 
     def create_roofs(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
 
