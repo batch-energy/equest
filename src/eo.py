@@ -670,6 +670,141 @@ class Building(object):
                     #space.polygon.delete_sequential_dupes()
                     other_space.polygon.delete_sequential_dupes()
 
+    def split_interior_walls_prescribed_(self, spaces, tol=1):
+
+        '''Splits space where it intersects with adjacent space'''
+
+        for space in spaces:
+            ssp = space.shapely_poly
+
+            add_points = []
+            print space.name
+
+            for other_space in spaces:
+                if space is other_space:
+                    continue
+                if space.vertical_overlap(other_space) < 0:
+                    continue
+                ossp = space.shapely_poly
+                if ssp.distance(ossp) > 1:
+                    continue
+
+                print '  ', other_space.name
+                for ls1 in space.polygon.lines:
+                    for ls2 in other_space.polygon.lines:
+                        if ls1.distance(ls2) > 1:
+                            continue
+                        if abs(180 - angle(ls1.coords, ls2.coords)) > 5:
+                            continue
+                        spt1, spt2 = [Point(p) for p in ls1.coords]
+                        ospt1, ospt2 = [Point(p) for p in ls2.coords]
+
+
+                        if spt1.distance(ospt1) < 1:
+                            continue
+                        if spt2.distance(ospt2) < 1:
+                            continue
+
+                        print '        s1', spt1
+                        print '        s2', spt2
+                        print '        o1', ospt1
+                        print '        o2', ospt2
+
+                        print '     ', ls1, ls2
+
+                        if spt2.distance(ospt1) > 1 and ospt1.distance(ls1) < 1:
+                            print '         ADDED 1 ', list(ospt1.coords)
+                            add_points.append(ospt1)
+
+                        if spt1.distance(ospt2) > 1 and ospt2.distance(ls1) < 1:
+                            print '         ADDED 2 ', list(ospt2.coords)
+                            add_points.append(ospt2)
+
+
+    def split_interior_walls_prescribed(self, spaces, tol=1):
+
+        '''Splits space where it intersects with adjacent space'''
+
+        def sorter(point):
+            return point.distance(base_point)
+
+        added_total = True
+
+        while added_total:
+
+            added_total = 0
+
+            for space in spaces:
+                print space.name
+                poly = space.shapely_poly
+
+                add_points = defaultdict(list)
+
+                if space.name == '"1-DANCE"' and other_space.name == '"2-BAND"':
+                    print '   hit'
+
+                for other_space in spaces:
+                    other_poly = other_space.shapely_poly
+                    if space is other_space:
+                        continue
+                    if space.vertical_overlap(other_space) < 0.1:
+                        continue
+                    if poly.distance(other_poly) > 1:
+                        continue
+
+                    for i, line in enumerate(space.polygon.lines, 0):
+                        point_1, point_2 = [Point(p) for p in line.coords]
+                        for point in other_space.polygon.points:
+                            if line.distance(point) > 1:
+                                continue
+                            if point.distance(point_1) < 1:
+                                continue
+                            if point.distance(point_2) < 1:
+                                continue
+                            add_points[i].append(point)
+
+                            added_total += 1
+
+                for point_loc, added_points in sorted(add_points.items(), reverse=True):
+                    base_point = space.polygon.points[point_loc]
+                    added_points.sort(key=sorter, reverse=True)
+                    prev_point = None
+                    for point in added_points:
+                        if prev_point is not None and prev_point.distance(point) < 0.1:
+                            continue
+                        pt = point.coords[0]
+                        space.polygon.add_verticy(pt, point_loc)
+                        prev_point = point
+
+            print 'Added total', added_total
+
+    def adjust_spaces_to_align(self, basespace, move_spaces):
+
+        moved_points = []
+        moved_floors = set()
+        for point in basespace.polygon.points:
+            print '\n', point.coords[0]
+            for space in move_spaces:
+                print '  ', space.name
+                moved_floors.add(space.parent.name)
+                for i, move_point in enumerate(space.polygon.points):
+                    #print '   ', move_point
+                    if point.distance(move_point) < 1:
+                        print '     Close', move_point, point
+                        moved_points.append((move_point, point))
+                        #print space.polygon.vertices
+                        space.polygon.set_verticy(point.coords[0], i)
+                        #print space.polygon.vertices
+
+        for floor_name in moved_floors:
+            for space in self.kinds('SPACE').values():
+                if space.parent.name != floor_name:
+                    continue
+                for i, point in enumerate(space.polygon.points):
+                    for moved_point, base_point in moved_points:
+                        if point.distance(moved_point) < 0.1:
+                            space.polygon.set_verticy( base_point.coords[0], i)
+
     def split_interior_walls(self, tol=1):
 
         '''Splits space where it intersects with adjacent space'''
