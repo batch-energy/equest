@@ -93,7 +93,7 @@ class Building(object):
             elif wrap(name) in self.objects:
                 objects.append(self.objects[wrap(name)])
             else:
-                raise '%s not found' % name
+                raise Exception('%s not found' % name)
         return objects
 
     def __clean_file(self, text):
