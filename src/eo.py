@@ -493,8 +493,7 @@ class Building(object):
                             door.attr['CONSTRUCTION'] = window_data.material
                         else:
                             template = '-W_%s_{number}' % window_data.title
-                            name = wall.find_next_child_name(template)
-                            #name = utils.suffix(wall.name, '-W_%s_%s' % (i, window_data.title))
+                            name = utils.suffix(wall.name, '-W_%s_%s' % (i, window_data.title))
                             win = Window(self, name=name, parent=wall)
                             win.attr['X'] = x1
                             win.attr['Y'] = y1
