@@ -1958,6 +1958,37 @@ class E_Wall(Wall):
     def has_windows(self):
         return bool(self.windows())
 
+    def chain(self, count):
+
+        floor_ewalls = [ew for ew in self.b.kinds('EXTERIOR-WALL').values()
+            if ew.parent.parent.name == self.parent.parent.name and ew.is_regular_wall()]
+
+        chain = [self]
+        i = 1
+
+        for ewall in floor_ewalls:
+            if ewall in chain:
+                continue
+            if ewall.get_vertices()[0] == chain[-1].get_vertices()[0]:
+                i += 1
+                chain.append(ewall)
+        if i >= count:
+            return chain
+
+        flag = True
+        while flag:
+            if i >= count:
+                break
+            current = chain[-1]
+            for ewall in floor_ewalls:
+                if ewall in chain:
+                    continue
+                if distance(ewall.get_vertices()[0], current.get_vertices()[1]) < 0.1:
+                    chain.append(ewall)
+                    i += 1
+        return chain
+
+
 class U_Wall(Wall):
 
     def __init__ (self, b, name=None, kind='UNDERGROUND-WALL', parent=None):
