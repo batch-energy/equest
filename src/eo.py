@@ -997,7 +997,7 @@ class Building(object):
             use_space_poly_tol: when close enough, just use the space poly
             ratio_tol: skip when area is very small compared to perimeter
         '''
-
+        count = 0
         for space in self.kinds('SPACE').values():
             ceiling_polygons = copy.copy(space.shapely_poly)
             for i, other_space in enumerate(self.kinds('SPACE').values()):
@@ -1026,10 +1026,11 @@ class Building(object):
 
                     ceiling_polygon_name_list = []
                     for j, ceiling_shapely_polygon in enumerate(ceiling_shapely_polygon_list):
+                        count += 1
                         if (ceiling_shapely_polygon.area / space.shapely_poly.area) > use_space_poly_tol:
                             ceiling_polygon_name = space.polygon.name
                         else:
-                            ceiling_polygon_name = utils.suffix(space.name, '-CEILING_%s-%s poly' % (i, j))
+                            ceiling_polygon_name = utils.suffix(space.name, '-C%s poly' % (count))
                             polygon = Polygon(self, name=ceiling_polygon_name)
                             polygon.set_vertices(list(ceiling_shapely_polygon.exterior.coords))
                             try:
@@ -1042,7 +1043,7 @@ class Building(object):
                                 continue
                             if not polygon.is_ccw():
                                 polygon.reverse()
-                        ceiling_name = utils.suffix(space.name, '-CEILING_%s-%s' % (i, j))
+                        ceiling_name = utils.suffix(space.name, '-C%s' % (count))
                         ceiling = I_Wall(self, name=ceiling_name, parent=space)
                         ceiling.attr['LOCATION'] = 'TOP'
                         ceiling.attr['NEXT-TO'] = other_space.name
