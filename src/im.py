@@ -28,7 +28,7 @@ class Pdf_File(object):
         self.__define_annotations()
         self.__build()
         self.__verify_specials()
-        
+
         if self.messages:
             return
 
@@ -55,7 +55,7 @@ class Pdf_File(object):
                     # Make new page if page number is new
                     pdf_page = Pdf_Page()
                     self.pages[page_number] = pdf_page
-                else: 
+                else:
                     # Use exsting if page numebr exists
                     pdf_page = self.pages[page_number]
 
@@ -104,13 +104,13 @@ class Pdf_File(object):
             for key in page.origin.attrs:
                 if not key in valid_poly_attrs:
                     self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
-           
+
             # assign floor name from dominent space
             page.name = floor_name
 
             if page.scale is None:
                 self.messages.append('Page %s has no scale' % (page.name ))
-        
+
         for name, count in Counter([page.name for page in self.pages.values()]).items():
             if count > 1:
                 self.messages.append('Floor %s is defined multiple items' % name)
@@ -214,7 +214,7 @@ class Pdf_File(object):
         else:
             plenum_height = 0
 
-        space_height = total_height - plenum_height 
+        space_height = total_height - plenum_height
 
         if abs(plenum_height) < 0.1:
             has_plenum = False
@@ -338,7 +338,7 @@ def process_name(s):
         key, value = pair.split(':')
         if key != 'HP':
             attrs[key] = float(value)
-        else:  
+        else:
             attrs[key] = value.upper().startswith('Y')
 
     return name, attrs
@@ -361,7 +361,7 @@ def from_pdf(pdf_file, seed_file):
         for message in pdf.messages:
             print ' ', message
         return None
-        
+
     pdf_building = pdf.create()
 
     b.extend(pdf_building)
