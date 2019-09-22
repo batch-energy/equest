@@ -361,6 +361,7 @@ class Building(object):
 
         '''Make windows from svg projections'''
 
+        id_ = 0
 
         Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'scale', 'split', 'material', 'plenum'])
 
@@ -482,6 +483,8 @@ class Building(object):
                         x1 = x1 + (orig_w-w)/2.
                         y1 = y1 + (orig_h-h)/2.
 
+                        id_ += 1
+
                         if window_data.kind == 'door':
                             template = '-D_%s_{number}' % window_data.title
                             name = wall.find_next_child_name(template)
@@ -492,8 +495,7 @@ class Building(object):
                             door.attr['HEIGHT'] = h
                             door.attr['CONSTRUCTION'] = window_data.material
                         else:
-                            template = '-W_%s_{number}' % window_data.title
-                            name = utils.suffix(wall.name, '-W_%s_%s' % (i, window_data.title))
+                            name = utils.suffix(wall.name, '-W_%s_%s' % (id_, window_data.title))
                             win = Window(self, name=name, parent=wall)
                             win.attr['X'] = x1
                             win.attr['Y'] = y1
