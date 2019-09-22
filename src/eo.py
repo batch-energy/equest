@@ -429,8 +429,10 @@ class Building(object):
 
                     origin_shift = distance(ref_p1, w_p1)
 
-                    if distance(w_p1, ref_p2) > distance(w_p2, ref_p1):
-                         origin_shift = -origin_shift
+                    if e_math.angle_difference(
+                            e_math.get_angle(ref_p1, ref_p2),
+                            e_math.get_angle(ref_p1, w_p1)) > tol_a:
+                        origin_shift = -origin_shift
 
                     wall_x1 = origin_shift
                     wall_y1 = wall.z_global() - reference_wall.z_global()
