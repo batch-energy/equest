@@ -20,11 +20,7 @@ def phase_2(b):
     b.combine_close_vertices_within_floor(tol=0.5)
 
     print '  Splitting Interior Polygon Sides'
-    added = True
-    c = 0
-    while added:
-        c += 1
-        added = b.split_interior_walls(tol=0.5)
+    b.split_interior_walls(tol=0.5)
 
 def phase_3(b):
 

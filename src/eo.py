@@ -817,7 +817,7 @@ class Building(object):
 
             added = True
             while added:
-                added = False
+                added = 0
 
                 polygons = set([space.polygon for space in floor.children])
 
@@ -853,7 +853,10 @@ class Building(object):
                 # add new points along lines
                 for (poly, i), point in sorted(lookup_add.items(), reverse=True):
                     poly.add_verticy(point, i)
-                    added = True
+                    added += 1
+
+                print '    ...added %s' % added
+
 
     def create_roofs(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
 
