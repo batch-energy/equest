@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from e_math import convert_feet
+import shlex
 
 
 class Svg_Page():
@@ -141,9 +142,9 @@ class Svg_Origin():
 
         self.svg_rect = svg_rect
 
-        # Possible to assign more than one wall at once
-        self.walls = svg_rect.title.split()[1:]
-
+        # Names with spaces need to be encludes with double quotes
+        # Multiple walls can be space separated
+        self.walls = shlex.split(svg_rect.title)[1:]
 
 class Svg_Window():
 
