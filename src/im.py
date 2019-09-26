@@ -329,12 +329,22 @@ class Pdf_Polygon(object):
 
 def process_name(s):
 
-    fields = re.sub(r'[\[\]\;\(\)]', ' ', s).split()
     
-    name = fields[0]
+    normalized = re.sub(r'[\[\]\;\(\)]', ' ', s)
+
+    name_parts = []
+    attrs_parts = []
+    for part in normalized.split():
+        if ':' in part:
+            attrs_parts.append(part)
+        else:
+            name_parts.append(part)
+
+    name = ' '.join(name_parts)
+
     attrs = {}
 
-    for pair in fields[1:]:
+    for pair in attrs_parts:
         key, value = pair.split(':')
         if key != 'HP':
             attrs[key] = float(value)
