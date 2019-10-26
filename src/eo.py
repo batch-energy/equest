@@ -527,11 +527,16 @@ class Building(object):
                             win.attr['HEIGHT'] = h
                             win.attr['GLASS-TYPE'] = window_data.material
 
-    def rotate_space_polygons(self, degrees):
+    def rotate_space_polygons(self, degrees, floors=None):
 
         '''Rotate all spaces'''
 
-        polygons = [space.polygon for space in self.kinds('SPACE').values()]
+        if floors is None:
+            polygons = [space.polygon for space in self.kinds('SPACE').values()]
+        else:
+            polygons = [space.polygon for space in self.kinds('SPACE').values()
+                if space.parent.name in floors]
+
         for polygon in set(polygons):
             polygon.set_vertices(
                 [e_math.rotate(p[0], p[1], degrees) for p in polygon.vertices])
