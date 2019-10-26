@@ -1103,10 +1103,11 @@ class Building(object):
 
         delete_i_walls = []
         for name, i_wall in self.kinds('INTERIOR-WALL').items():
-            parent, next_to = i_wall.parents()
 
             if not i_wall.is_vertical():
                 continue
+
+            parent, next_to = i_wall.parents()
 
             windows = []
             for space in i_wall.parents():
