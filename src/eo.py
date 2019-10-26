@@ -55,6 +55,28 @@ class Building(object):
 
     def dump(self, fn=None):
 
+        def order(a_pair, b_pair):
+            a = a_pair[0]
+            b = b_pair[0]
+            if '-' in a and '-' in b:
+                for a_part, b_part in zip(a.split('-'), b.split('-')):
+                    if a_part == b_part:
+                        continue
+                    if a_part.isdigit() and b_part.isdigit():
+                        a_part = int(a_part)
+                        b_part = int(b_part)
+                    if a_part > b_part:
+                        return 1
+                    else:
+                        return -1
+                return 0
+            elif a > b:
+                return 1
+            elif a < b:
+                return -1
+            else:
+                 return 0
+
         fn = fn or self.fn
 
         if os.path.exists(fn):
@@ -73,7 +95,7 @@ class Building(object):
                         defaults_written.append(default)
 
             if not kind in ref.parents.keys():
-                for o in self.kinds(kind).values():
+                for _, o in sorted(self.kinds(kind).items(), order):
                     t += o.write()
 
         self.write(fn, t)
