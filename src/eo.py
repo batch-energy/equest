@@ -766,13 +766,10 @@ class Building(object):
             added_total = 0
 
             for space in spaces:
-                print space.name
+                #print space.name
                 poly = space.shapely_poly
 
                 add_points = defaultdict(list)
-
-                if space.name == '"1-DANCE"' and other_space.name == '"2-BAND"':
-                    print '   hit'
 
                 for other_space in spaces:
                     other_poly = other_space.shapely_poly
@@ -814,14 +811,14 @@ class Building(object):
         moved_points = []
         moved_floors = set()
         for point in basespace.polygon.points:
-            print '\n', point.coords[0]
+            #print '\n', point.coords[0]
             for space in move_spaces:
-                print '  ', space.name
+                #print '  ', space.name
                 moved_floors.add(space.parent.name)
                 for i, move_point in enumerate(space.polygon.points):
                     #print '   ', move_point
                     if point.distance(move_point) < 1:
-                        print '     Close', move_point, point
+                        #print '     Close', move_point, point
                         moved_points.append((move_point, point))
                         #print space.polygon.vertices
                         space.polygon.set_verticy(point.coords[0], i)
