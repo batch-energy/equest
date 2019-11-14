@@ -1159,7 +1159,7 @@ class Building(object):
         self.create_floors()
         self.create_ceilings()
 
-    def nudge_windows(self, buffer=0.5, trim=False):
+    def nudge_windows(self, buffer=0.5, trim=False, leave_if_unfit=True):
 
         for window in self.kinds('WINDOW').values():
             try:
@@ -1176,6 +1176,9 @@ class Building(object):
             wall_y = float(wall.y())
             wall_w = float(wall.width())
             wall_h = float(wall.height())
+
+            if win_h + 2 * buffer > wall_h and leave_if_unfit:
+                continue
 
             if win_w / wall_w > 0.9:
                 window.attr['X'] = (wall_w - win_w) / 2

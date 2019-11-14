@@ -209,6 +209,9 @@ def overlap_split(range, pairs):
 def is_close(a, b, tol):
     return abs(a-b) < tol
 
+def midpoint(p1, p2):
+    return (p1[0] + p2[0])/2, (p1[1] + p2[1])/2
+
 def main():
     range = [0,15]
     pairs = []
