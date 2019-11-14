@@ -1551,6 +1551,10 @@ class Floor(Object):
     def has_plenum(self):
         return (self.plenum_height > 0)
 
+    def spaces(self):
+        return [space for space in self.b.kinds('SPACE').values()
+            if space.parent==self]
+
     def duplicate(self, name, z):
 
         '''Duplicates Floor and all child elements, with new z and name'''
