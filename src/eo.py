@@ -2163,6 +2163,10 @@ class Window(Wall_Object):
         for attr, value in [('X', x), ('Y', y), ('WIDTH', w), ('HEIGHT', h)]:
             self.attr[attr] = value
 
+    def area(self):
+        return round(float(self.attr['WIDTH']) * float(self.attr['HEIGHT']), 2)
+
+
 class Door(Wall_Object):
 
     def __init__ (self, b, name=None, kind='DOOR', parent=None):
