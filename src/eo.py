@@ -1548,7 +1548,6 @@ class Floor(Object):
     def height(self):
         return self.attr.get('FLOOR-HEIGHT')
 
-
     def has_plenum(self):
         return (self.plenum_height > 0)
 
