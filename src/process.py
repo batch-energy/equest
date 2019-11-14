@@ -38,7 +38,7 @@ def phase_4(b):
     print '  Importing Windows'
     for name in b.kinds(['WINDOW', 'DOORS']):
         b.objects[name].delete()
-    b.make_windows('e_new.svg')
+    b.make_windows('e1.svg')
     
 def main():
 
