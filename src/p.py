@@ -18,6 +18,7 @@ import time
 import os
 import shutil
 import utils
+import subprocess
 
 BACKUP_DIR = 'backup_process'
 
@@ -53,7 +54,7 @@ def main():
         print
         raw_input('  >>')
 
-        os.system('process.py')
+        subprocess.Popen('"C:\Program Files\Just Great Software\EditPad Pro 7\EditPadPro7.exe" process.py')
 
         return
 
