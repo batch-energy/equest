@@ -1199,6 +1199,31 @@ class Building(object):
             elif win_y + win_h + buffer > wall_h:
                 window.attr['Y'] = round(wall_h - win_h - buffer, 2)
 
+    def add_daylighting(self):
+
+        for name, space in self.kinds('SPACE').items():
+            windows = defaultdict(int)
+
+            for e_wall in space.e_walls():
+                if e_wall.tilt() != 90:
+                    continue
+                for window in e_wall.windows():
+                    windows[e_wall] += window.area()
+
+            if not windows:
+                continue
+
+            _, wall = sorted([(v, k) for k, v in windows.items()])[-1]
+            p1, p2 = wall.get_vertices()
+            mx, my = e_math.midpoint(p1, p2)
+            angle = e_math.get_angle(p1, p2, True)
+            offset_radians = math.radians((e_math.get_angle(p1, p2, True) + 90) % 360)
+            y = 10 * math.sin(offset_radians) + my
+            x = 10 * math.cos(offset_radians) + mx
+            space.attr['DAYLIGHTING'] = 'YES'
+            space.attr['LIGHT-REF-POINT1'] = ( x, y)
+            space.attr['VIEW-AZIMUTH'] = e_math.swap_angle(angle)
+
 
 class Default(object):
 
