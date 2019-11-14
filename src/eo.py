@@ -1445,6 +1445,10 @@ class Polygon(Object):
             self.vertices = vertices
         self.regenerate()
 
+    def rotate(self, degrees):
+        self.set_vertices(
+            [e_math.rotate(p[0], p[1], degrees) for p in self.vertices])
+
     def delete_verticy(self, v):
         self.vertices.pop(v-1)
         self.regenerate()
