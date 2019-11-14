@@ -12,7 +12,7 @@ def phase_1(b):
     print '  Creating Zones'
     b.create_zones()
     print '  Rotating Spaces'
-    b.rotate_space_polygons(90)
+    b.rotate_floors(90)
 
 def phase_2(b):
 

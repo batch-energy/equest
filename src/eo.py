@@ -527,9 +527,12 @@ class Building(object):
                             win.attr['HEIGHT'] = h
                             win.attr['GLASS-TYPE'] = window_data.material
 
-    def rotate_space_polygons(self, degrees, floors=None):
+                        if False:
+                            print name, projection.origin.svg_rect.id
 
-        '''Rotate all spaces'''
+    def rotate_floors(self, degrees, floors=None):
+
+        '''Rotate all spaces or spaces on floors'''
 
         if floors is None:
             polygons = [space.polygon for space in self.kinds('SPACE').values()]
@@ -538,8 +541,20 @@ class Building(object):
                 if space.parent.name in floors]
 
         for polygon in set(polygons):
-            polygon.set_vertices(
-                [e_math.rotate(p[0], p[1], degrees) for p in polygon.vertices])
+            polygon.rotate(degrees)
+
+    def move_floors(self, x, y, floors=None):
+
+        '''Rotate all spaces or spaces on floors'''
+
+        if floors is None:
+            polygons = [space.polygon for space in self.kinds('SPACE').values()]
+        else:
+            polygons = [space.polygon for space in self.kinds('SPACE').values()
+                if space.parent.name in floors]
+
+        for polygon in set(polygons):
+            polygon.move(x, y)
 
     def combine_close_vertices(self, spaces=None, tol=0.5):
 
