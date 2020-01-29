@@ -773,12 +773,15 @@ class Building(object):
                             add_points.append(ospt2)
 
 
-    def split_interior_walls_prescribed(self, spaces, tol=1):
+    def split_interior_walls_prescribed(self, spaces=None, tol=1):
 
         '''Splits space where it intersects with adjacent space'''
 
         def sorter(point):
             return point.distance(base_point)
+
+        if spaces is None:
+            spaces = self.kinds('SPACE').values()
 
         added_total = True
 
