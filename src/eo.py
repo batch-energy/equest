@@ -218,6 +218,12 @@ class Building(object):
         self.defaults.update(other.defaults)
         self.parameters.update(other.parameters)
 
+    def rename(self, object, name):
+        old_name = object.name
+        self.objects[name] = object
+        object.name = name
+        del self.objects[old_name]
+
     def sorted_floors(self):
 
         '''Floors in ascenting z'''
