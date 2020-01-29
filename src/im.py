@@ -76,7 +76,7 @@ class Pdf_File(object):
 
         '''Verify contents of each page'''
 
-        valid_poly_attrs = ['Z', 'H', 'HP', 'PH', 'X', 'Y']
+        valid_poly_attrs = ['Z', 'H', 'HP', 'PH', 'X', 'Y', 'S']
 
         for name, page in self.pages.items():
 
@@ -140,9 +140,35 @@ class Pdf_File(object):
                 polygon = eo.Polygon(b, name=name, vertices=vertices)
                 if not polygon.is_ccw():
                     polygon.reverse()
-                self.__create_space(b, floor, fdf_polygon, polygon, page)
+                spaces = \
+                    self.__create_space(b, floor, fdf_polygon, polygon, page)
+
+                if 'S' in fdf_polygon.attrs:
+                    system_name = utils.wrap(fdf_polygon.attrs['S'] + '_SYS')
+                else:
+                    system_name = '"Dummy System"'
+
+                print system_name
+                self.__create_zones(b, spaces, system_name)
 
         return b
+
+    def __create_zones(self, b, spaces, system_name):
+
+        '''Creates zones under system'''
+
+        if not system_name in b.objects:
+            system = eo.System(b, system_name)
+            system.attr['TYPE'] = 'VAVS'
+            system.attr['HEAT-SOURCE'] = 'NONE'
+            system.attr['CHW-LOOP'] = '"DEFAULT-CHW"'
+        else:
+            system = b.objects[system_name]
+
+
+        for space in spaces:
+            if space is not None:
+                space.make_zone(system)
 
     def __set_vertices(self, page, fdf_polygon):
 
@@ -257,6 +283,7 @@ class Pdf_File(object):
                 plenum_space.attr['Z'] = plenum_z
             plenum_space.attr['C-ACTIVITY-DESC'] = '*Plenum*'
 
+        return [space, plenum_space]
 
 class Pdf_Page(object):
 
@@ -346,10 +373,12 @@ def process_name(s):
 
     for pair in attrs_parts:
         key, value = pair.split(':')
-        if key != 'HP':
-            attrs[key] = float(value)
-        else:
+        if key == 'HP':
             attrs[key] = value.upper().startswith('Y')
+        elif key == 'S':
+            attrs[key] = value
+        else:
+            attrs[key] = float(value)
 
     return name, attrs
 

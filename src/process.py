@@ -9,8 +9,6 @@ def phase_0(pdf_file):
 
 def phase_1(b):
 
-    print '  Creating Zones'
-    b.create_zones()
     print '  Rotating Spaces'
     b.rotate_floors(90)
 
