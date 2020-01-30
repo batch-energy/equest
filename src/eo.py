@@ -534,7 +534,11 @@ class Building(object):
                             win.attr['GLASS-TYPE'] = window_data.material
 
                         if False:
-                            print name, projection.origin.svg_rect.id
+                            print
+                            print 'NAME      ', name
+                            print 'REFERENCE ', reference_wall_name
+                            print 'PROJECTION', projection.origin.svg_rect.id
+                            print
 
     def rotate_floors(self, degrees, floors=None):
 
