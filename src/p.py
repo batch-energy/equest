@@ -54,7 +54,7 @@ def main():
         print
         raw_input('  >>')
 
-        subprocess.Popen('"C:\Program Files\Just Great Software\EditPad Pro 7\EditPadPro7.exe" process.py')
+        subprocess.Popen('"C:\Program Files\Just Great Software\EditPad Pro 8\EditPadPro8.exe" process.py')
 
         return
 
