@@ -148,7 +148,6 @@ class Pdf_File(object):
                 else:
                     system_name = '"Dummy System"'
 
-                print system_name
                 self.__create_zones(b, spaces, system_name)
 
         return b
