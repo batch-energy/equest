@@ -1927,7 +1927,7 @@ class Wall(Object):
         return self.parent.polygon.lines[self.get_side_number()-1]
 
     def area(self):
-        if self.shape == 'POLYGON':
+        if 'POLYGON' in self.attr:
             return self.b.objects[self.attr['POLYGON']].area()
         elif self.special_horizontal:
             return self.b.objects[self.parent.attr['POLYGON']].area()
@@ -1956,7 +1956,7 @@ class Wall(Object):
 
     def polygon(self):
         # This may not always return expected values for BOTTOM walls
-        if self.shape == 'POLYGON':
+        if 'POLYGON' in self.attr:
             return self.b.objects[self.attr['POLYGON']]
         elif self.special_horizontal:
             return self.b.objects[self.parent.attr['POLYGON']]
