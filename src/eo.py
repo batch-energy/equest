@@ -230,6 +230,15 @@ class Building(object):
         return [sf[1] for sf in sorted([(f.z(), f)
             for f in self.kinds('FLOOR').values()])]
 
+    def next_name(self, template):
+        i = 1
+        while True:
+            name = template % i
+            if name in self.b.objects:
+                i += 1
+            else:
+                return name
+
     def space_pairs(self, tol=0.1):
 
         '''Returns a list of spaces pairs which are adjacent to one another'''
