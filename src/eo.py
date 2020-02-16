@@ -3,6 +3,7 @@ import re, time, os, ref, e_math, math, utils
 from e_math import is_close, distance, angle, projected_distance, angle_distance, dist
 from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
+from shapely.ops import split as shapely_split
 import copy
 from client import get_client_construction, get_client_glass
 from string import ascii_lowercase
@@ -2299,6 +2300,71 @@ class Comparison():
                 base.defaults[key].attr.update(default.attr)
 
         return base
+
+def split_roof(roof, points, combine_tolerance=0.5):
+
+
+    '''
+    Splits a roof along a line made up of points. Points are aligned
+    to a point in the polygon if they are within the tolerance. No action
+    is taken if the line does not fully instersect the roof. New
+    roofs are created and the old roof is deleted.
+    '''
+
+    # Get next unique name for roof and polyogn
+    def get_new_names():
+        i = 1
+        while True:
+            wall_name = utils.suffix(space.name, '-Roof_%s' % i)
+            poly_name = utils.suffix(space.name, '-Roof_%s_poly' % i)
+            if wall_name not in b.objects and poly_name not in b.objects:
+                break
+            i += 1
+
+        return wall_name, poly_name
+
+    # Define objects
+    b = roof.b
+    space = roof.parent
+    shapely_poly = roof.polygon().shapely_poly
+
+    # Combine points with known polygon point if within tolerance
+    adjusted_points = []
+    for point in points:
+        for point_poly in shapely_poly.exterior.coords:
+            dist = Point(point_poly).distance(Point(point))
+            if dist < combine_tolerance:
+                adjusted_points.append(point_poly)
+                break
+        else:
+            adjusted_points.append(point)
+
+    # Split polygon
+    split = shapely_split(shapely_poly, LineString(adjusted_points))
+    if len(split) == 1:
+        print 'No split occured for %s' % roof.name
+        return
+
+    print 'Split %s into %s' % (roof.name, len(split))
+
+    # Create new objects
+    for polygon_new in split:
+        wall_name, poly_name = get_new_names()
+
+        # Make new polygon
+        polygon = Polygon(b, name=poly_name)
+        polygon.set_vertices(list(polygon_new.exterior.coords))
+        polygon.delete_sequential_dupes()
+        if not polygon.is_ccw():
+            polygon.reverse()
+
+        # Make new roof
+        wall = E_Wall(b, name=wall_name, parent=roof.parent)
+        wall.inherit(roof)
+        wall.attr['POLYGON'] = poly_name
+
+    # Delete old
+    roof.delete()
 
 def sloped_roof(roof, base_point, other_point):
 
