@@ -2368,6 +2368,18 @@ def split_roof(roof, points, combine_tolerance=0.5):
 
 def sloped_roof(roof, base_point, other_point):
 
+    '''
+    Convert existing roofs to sloped roofs. Use a base point
+    and reference point to define the plane, and the existing
+    roof will be converted. It's helpful to first split the roofs
+    using the split roof function above, then use the split line
+    endpoints and the polygon centroid, alond with the shapely
+    counter clockwise function to determine all of the roofs on
+    either side of the split.
+
+    See Gardner Elementary for an example
+    '''
+
     def angle(p1, p2):
         x1 = float(p1[0])
         y1 = float(p1[1])
