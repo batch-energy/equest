@@ -1903,7 +1903,7 @@ class Wall(Object):
         return self.get('SHAPE')
 
     def get_side_number(self):
-        if 'SPACE-' in self.get('LOCATION'):
+        if 'LOCATION' in self.attr and 'SPACE-' in self.get('LOCATION'):
             return int(re.findall('(?<=SPACE-V)\d+', self.get('LOCATION'))[0])
         else:
             return None
@@ -1914,7 +1914,14 @@ class Wall(Object):
     def get_vertices(self):
         polygon = self.parent.polygon
         side_number = self.get_side_number()
-        return polygon.get_vertices(side_number)
+        if side_number is not None:
+            return polygon.get_vertices(side_number)
+        else:
+            x1, y1 = self.x(), self.y()
+            angle = e_math.swap_angle(self.attr['AZIMUTH'])
+            x2 = math.cos(math.radians(angle)) + x1
+            y2 = math.sin(math.radians(angle)) + y1
+            return [(x1, y1), (x2, y2)]
 
     def line(self):
         return self.parent.polygon.lines[self.get_side_number()-1]
