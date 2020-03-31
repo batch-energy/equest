@@ -469,7 +469,7 @@ class Building(object):
 
                     if e_math.angle_difference(
                             e_math.get_angle(ref_p1, ref_p2),
-                            e_math.get_angle(ref_p1, w_p1)) > tol_a:
+                            e_math.get_angle(ref_p1, w_p1)) > 90:
                         origin_shift = -origin_shift
 
                     wall_x1 = origin_shift
