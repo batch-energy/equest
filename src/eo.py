@@ -563,6 +563,19 @@ class Building(object):
         for polygon in set(polygons):
             polygon.rotate(degrees)
 
+    def flip_horizontal(self, floors=None):
+
+        '''Rotate all spaces or spaces on floors'''
+
+        if floors is None:
+            polygons = [space.polygon for space in self.kinds('SPACE').values()]
+        else:
+            polygons = [space.polygon for space in self.kinds('SPACE').values()
+                if space.parent.name in floors]
+
+        for polygon in set(polygons):
+            polygon.flip_horizontal()
+
     def move_floors(self, x, y, floors=None):
 
         '''Rotate all spaces or spaces on floors'''
@@ -1486,6 +1499,10 @@ class Polygon(Object):
     def rotate(self, degrees):
         self.set_vertices(
             [e_math.rotate(p[0], p[1], degrees) for p in self.vertices])
+
+    def flip_horizontal(self):
+        self.set_vertices([(-p[0], p[1]) for p in self.vertices])
+        self.reverse()
 
     def delete_verticy(self, v):
         self.vertices.pop(v-1)
