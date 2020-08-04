@@ -1171,6 +1171,18 @@ class Building(object):
         for name in delete_i_walls:
             self.objects[name].delete()
 
+    def remove_vertical_interior_walls(self):
+
+        '''Remove vertical interior walls'''
+
+        delete_i_walls = []
+        for name, i_wall in self.kinds('INTERIOR-WALL').items():
+            if i_wall.is_vertical():
+                delete_i_walls.append(name)
+
+        for name in delete_i_walls:
+            self.objects[name].delete()
+
     def remove_plenum_for_spaces_with_no_exterior_walls(self):
 
         '''
