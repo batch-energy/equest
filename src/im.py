@@ -296,7 +296,7 @@ class Pdf_Page(object):
         self.polygons = []
         self.origin = None
         self.scale = None
-
+        self.name = None
 
 class Pdf_Origin(object):
 
