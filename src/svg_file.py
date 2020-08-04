@@ -107,7 +107,7 @@ class Svg_Rectangle():
         self.id = xml_rect.attrib['id']
 
         if 'transform' in xml_rect.attrib:
-            print 'Error: Some elements tranformed, which disrupts parsing'
+            print 'Error: Some elements tranformed, which disrupts parsing (%s / %s)' % (self.title, self.id)
 
         self.style = {}
         for kv in xml_rect.attrib['style'].split(';'):
