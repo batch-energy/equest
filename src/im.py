@@ -98,7 +98,6 @@ class Pdf_File(object):
                         self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
             common = floor_name_counter.most_common(1)
-            print floor_name_counter
             if not common:
                 self.messages.append('No spaces on page %s' % name)
                 continue

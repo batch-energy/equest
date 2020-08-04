@@ -166,7 +166,6 @@ def convert_feet(s):
         f, i = float(s), 0
     if f < 0:
         i = -i
-    print f + i/12
     return (f + i/12)
 
 
