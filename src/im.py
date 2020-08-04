@@ -97,7 +97,13 @@ class Pdf_File(object):
                     if not key in valid_poly_attrs:
                         self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
-            floor_name = floor_name_counter.most_common(1)[0][0]
+            common = floor_name_counter.most_common(1)
+            print floor_name_counter
+            if not common:
+                self.messages.append('No spaces on page %s' % name)
+                continue
+
+            floor_name = common[0][0]
             if len(floor_name_counter) > 1:
                 self.messages.append('Floor %s has spaces assigned to multiple floors' % (floor_name))
 
