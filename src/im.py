@@ -383,7 +383,7 @@ def process_name(s):
         elif key == 'S':
             attrs[key] = value
         else:
-            attrs[key] = float(value)
+            attrs[key] = convert_feet(value)
 
     return name, attrs
 
