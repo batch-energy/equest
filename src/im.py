@@ -115,7 +115,7 @@ class Pdf_File(object):
             page.name = floor_name
 
             if page.scale is None:
-                self.messages.append('Page %s has no scale' % (page.name ))
+                self.messages.append('Page %s has no scale' % (page.name))
 
         for name, count in Counter([page.name for page in self.pages.values()]).items():
             if count > 1:
