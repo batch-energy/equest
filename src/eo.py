@@ -1199,7 +1199,7 @@ class Building(object):
             if space.is_plenum() and len(space.e_walls()) == 0:
                 delete_space_names.append(name)
                 delete_zone_names.append(space.zone().name)
-                adjust_space = self.objects[name.replace('_P', '')]
+                adjust_space = self.objects[name.replace('_p', '')]
                 adjust_space.attr['HEIGHT'] = adjust_space.height() + space.height()
 
         # Delete spcaes and zones
