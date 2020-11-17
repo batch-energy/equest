@@ -1243,7 +1243,13 @@ class Building(object):
             if win_h + 2 * buffer > wall_h and leave_if_unfit:
                 continue
 
-            if win_w / wall_w > 0.9:
+            # TODO - consider undoing this
+            if win_w + 2 * buffer > wall_w:
+                print 'Cannot fit window %s' % window.name
+                window.attr['X'] = round(buffer, 2)
+                if trim:
+                    window.attr['WIDTH'] = wall_w - 2 * buffer
+            elif win_w / wall_w > 0.9:
                 window.attr['X'] = (wall_w - win_w) / 2
             elif win_x < 0:
                 window.attr['X'] = round(buffer, 2)
@@ -1254,7 +1260,6 @@ class Building(object):
                 print 'Cannot fit window %s' % window.name
                 window.attr['Y'] = round(buffer, 2)
                 if trim:
-                    window.attr['Y'] = round(buffer, 2)
                     window.attr['HEIGHT'] = wall_h - 2 * buffer
 
             elif win_y < 0:
