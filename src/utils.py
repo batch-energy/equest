@@ -1,4 +1,5 @@
 import os, utils, textwrap, re
+from collections import defaultdict
 
 def last_split_point(s, max):
     split_point = 0
@@ -128,3 +129,12 @@ def is_number(s):
 
 def input_file_name():
     return os.getcwd().split(os.sep)[-1] + '.inp'
+
+def make_floor_data(data, positions):
+
+    attrs = defaultdict(dict)
+    for floor_name, floor_data in data.items():
+        for key, value in zip(positions, floor_data):
+            attrs[floor_name][key] = value
+
+    return attrs

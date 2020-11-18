@@ -19,11 +19,14 @@ def get_fdf_attribute(attr, line):
 
 class Pdf_File(object):
 
-    def __init__(self, pdf_path):
+    def __init__(self, pdf_path, attrs=None):
+
         self.pdf_path = pdf_path
         self.annotations = defaultdict(list)
         self.pages = OrderedDict()
         self.messages = []
+
+        self.__provided_attrs = attrs or {}
 
         self.__define_annotations()
         self.__build()
@@ -112,6 +115,10 @@ class Pdf_File(object):
 
             # assign floor name from dominent space
             page.name = floor_name
+
+            # override attrs for floor if provided from caller, else use those in pdf
+            if floor_name in self.__provided_attrs:
+                page.origin.attrs = self.__provided_attrs[floor_name]
 
             if page.scale is None:
                 self.messages.append('Page %s has no scale' % (page.name))
@@ -301,12 +308,10 @@ class Pdf_Origin(object):
 
     def __init__(self, annotation):
 
-        self.attrs = {}
 
         vl = annotation.get('/Vertices')
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
         self.name, self.attrs = process_name(annotation.get('/T'))
-
 
         # set orientation
 
@@ -387,7 +392,7 @@ def process_name(s):
     return name, attrs
 
 
-def from_pdf(pdf_file, seed_file):
+def from_pdf(pdf_file, seed_file, attrs=None):
 
     '''Create a building from an pdf file'''
 
@@ -399,7 +404,7 @@ def from_pdf(pdf_file, seed_file):
     b = eo.Building()
     b.load(seed_file)
 
-    pdf = Pdf_File(pdf_file)
+    pdf = Pdf_File(pdf_file, attrs)
     if pdf.messages:
         for message in pdf.messages:
             print ' ', message
@@ -416,11 +421,11 @@ def from_pdf(pdf_file, seed_file):
 
     return b
 
-def create(pdf, seed_file):
+def create(pdf, seed_file, attrs=None):
 
     '''Helper to dump building from pdf to prescribed input file name'''
 
-    b = from_pdf(pdf, seed_file)
+    b = from_pdf(pdf, seed_file, attrs)
     if b is None:
         print '  Exiting...'
         return None

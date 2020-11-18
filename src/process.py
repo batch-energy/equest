@@ -9,6 +9,13 @@ def phase_0(pdf_file):
 
 def phase_1(b):
 
+    floor_data = {
+        "1":  [10.0, 10.0, "Y", 4],
+        "2":  [20.0, 10.5, "N", 0],
+        }
+    positions = ['Z', 'H', 'HP', 'PH']
+    attrs = utils.make_floor_data(floor_data, positions)
+
     print '  Rotating Spaces'
     b.rotate_floors(90)
 
