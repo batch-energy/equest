@@ -1516,6 +1516,14 @@ class Polygon(Object):
             self.vertices = vertices
         self.regenerate()
 
+    def shift(self, count):
+        if count < 0:
+            for _ in range(-count):
+                self.set_vertices(self.vertices[1:] + self.vertices[:1])
+        else:
+            for _ in range(count):
+                self.set_vertices(self.vertices[-1:] + self.vertices[:-1])
+
     def rotate(self, degrees):
         self.set_vertices(
             [e_math.rotate(p[0], p[1], degrees) for p in self.vertices])
