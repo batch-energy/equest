@@ -1183,7 +1183,7 @@ class Building(object):
         for name in delete_i_walls:
             self.objects[name].delete()
 
-    def remove_plenum_for_spaces_with_no_exterior_walls(self):
+    def remove_plenum_for_spaces_with_no_exterior_walls(self, candidates=None):
 
         '''
         Remove plenum and associate zones for spaces with no
@@ -1192,14 +1192,17 @@ class Building(object):
         first, but they are removed and recreated in this process.
         '''
 
+        if candidates is None:
+            candidates = self.kinds('SPACE').values()
+
         # Mark deletes, adjust sibling space height
         delete_space_names = []
         delete_zone_names = []
-        for name, space in self.kinds('SPACE').items():
+        for space in candidates:
             if space.is_plenum() and len(space.e_walls()) == 0:
-                delete_space_names.append(name)
+                delete_space_names.append(space.name)
                 delete_zone_names.append(space.zone().name)
-                adjust_space = self.objects[name.replace('_p', '')]
+                adjust_space = self.objects[space.name.replace('_p', '')]
                 adjust_space.attr['HEIGHT'] = adjust_space.height() + space.height()
 
         # Delete spcaes and zones
