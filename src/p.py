@@ -16,6 +16,7 @@
 
 import time
 import os
+import sys
 import shutil
 import utils
 import subprocess
@@ -64,7 +65,8 @@ def main():
     if need_backup:
         backup = make_backup(input_file)
 
-    os.system('python process.py')
+    cmd ='python process.py ' + ' '.join(sys.argv[1:])
+    os.system(cmd)
 
     try:
         raw_input('Open eQuest - press enter to continue')

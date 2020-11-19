@@ -428,7 +428,7 @@ def create(pdf, seed_file, attrs=None):
     b = from_pdf(pdf, seed_file, attrs)
     if b is None:
         print '  Exiting...'
-        return None
+        return -1
     else:
         b.dump(utils.input_file_name())
         return 0
