@@ -1,20 +1,24 @@
-import os
+import os, sys
 import eo, e_math, time, im, utils
 
 def phase_0(pdf_file):
 
     print '  Importing from PDF'
-    seed_file = [f for f in os.listdir('.') if f.startswith('seed_')][0] 
-    return im.create(pdf_file, seed_file)
-
-def phase_2(b):
 
     floor_data = {
-        "1":  [10.0, 10.0, "Y", 4],
-        "2":  [20.0, 10.5, "N", 0],
-        }
+        'B': [-11.5, 11.5, 'N', 0],
+        '1': [0, 18, 'N', 0],
+        '2': [18, 15, 'N', 0],
+        '3': [33, 15, 'N', 0],
+        '4': [48, 20, 'N', 0]}
+
     positions = ['Z', 'H', 'HP', 'PH']
     attrs = utils.make_floor_data(floor_data, positions)
+
+    seed_file = [f for f in os.listdir('.') if f.startswith('seed_')][0]
+    return im.create(pdf_file, seed_file, attrs)
+
+def phase_2(b):
 
     print '  Rotating Spaces'
     b.rotate_floors(90)
@@ -38,14 +42,18 @@ def phase_6(b):
     print '  Making Floors'
     b.create_floors()
 
+    for floor in b.get_objects('B'):
+        for space in floor.spaces():
+            for wall in space.e_walls():
+                if wall.is_vertical():
+                    wall.to_uwall()
+
 def phase_8(b):
 
     print '  Importing Windows'
-    for name in b.kinds(['WINDOW', 'DOORS']):
+    for name in b.kinds(['WINDOW', 'DOOR']):
         b.objects[name].delete()
     b.make_windows('e1.svg')
-    
-def main():
 
 def main():
 
@@ -66,19 +74,19 @@ def main():
         else:
             phases.add(int(phase_group))
 
+    b = None
     for phase in phases:
         if phase == 0:
-            arg = 'Takeoffs.pdf'
-        else:
-            arg = b
-        name = 'phase_%s' % phase
-        if name in globals():
-            result = globals()[name](arg)
+            result = phase_0('Takeoffs.pdf')
             if result == -1:
                 return
-        if phase == 0:
+            continue
+        if b is None:
             b = eo.Building()
             b.load(utils.input_file_name())
+        name = 'phase_%s' % phase
+        if name in globals():
+            result = globals()[name](b)
 
     b.dump()
 

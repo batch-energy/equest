@@ -87,6 +87,7 @@ class Pdf_File(object):
             floor_name_counter = Counter()
             space_names_set = set()
             for polygon in page.polygons:
+
                 if not polygon.name.count('-') == 1:
                     self.messages.append('Space %s has wrong number of hyphens' % (polygon.name))
 
