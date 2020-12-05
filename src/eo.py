@@ -22,10 +22,23 @@ class Filter(object):
     def __init__(self):
         attr = {}
 
+class TolerantOrderedDict(OrderedDict):
+
+    def __init__(self):
+        super(TolerantOrderedDict, self).__init__()
+
+    def __getitem__(self, value):
+        try:
+            return super(TolerantOrderedDict, self).__getitem__(value)
+        except KeyError:
+            return super(TolerantOrderedDict, self).__getitem__(wrap(value))
+        except KeyError:
+            raise
+
 
 class Building(object):
     def __init__(self):
-        self.objects = OrderedDict()
+        self.objects = TolerantOrderedDict()
         self.defaults = OrderedDict()
         self.parameters = OrderedDict()
 
