@@ -44,7 +44,7 @@ def main():
         try:
             raw_input('Open eQuest - press enter to continue')
         finally:
-            if os.path.exists(BACKUP):
+            if os.path.exists(backup):
                 shutil.copy(backup, input_file)
 
 if __name__ == '__main__':

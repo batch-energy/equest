@@ -80,6 +80,8 @@ def main():
             result = phase_0('Takeoffs.pdf')
             if result == -1:
                 return
+            b = eo.Building()
+            b.load(utils.input_file_name())
             continue
         if b is None:
             b = eo.Building()
