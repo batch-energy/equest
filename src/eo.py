@@ -902,6 +902,11 @@ class Building(object):
                         if point.distance(moved_point) < 0.1:
                             space.polygon.set_verticy( base_point.coords[0], i)
 
+
+    def magic_align(self, spaces):
+        self.split_interior_walls_prescribed(spaces)
+        self.adjust_spaces_to_align(spaces[0], spaces[1:])
+
     def split_interior_walls(self, tol=1):
 
         '''Splits space where it intersects with adjacent space'''
