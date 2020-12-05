@@ -357,12 +357,14 @@ class Pdf_Polygon(object):
         self.vertices = [vl[i:i+2] for i in range(0, len(vl), 2)]
 
         if annotation.get('/Subject', '').lower() != 'polygon':
-            self.activity = annotation.get('/Subj')
+            self.activity, s_attrs = process_name(annotation.get('/Subj'))
         else:
             self.activity == None
 
-        self.name, self.attrs = process_name(annotation.get('/T'))
+        self.name, a_attrs = process_name(annotation.get('/T'))
 
+        self.attrs.update(s_attrs)
+        self.attrs.update(a_attrs)
 
 def process_name(s):
 
