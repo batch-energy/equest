@@ -414,7 +414,7 @@ class Building(object):
 
         id_ = 0
 
-        Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'scale', 'split', 'material', 'plenum'])
+        Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'scale', 'frame', 'split', 'material', 'plenum'])
 
         svg = svg_file.Svg_Page(svg_path)
 
@@ -425,6 +425,7 @@ class Building(object):
         #   _h : height
         #   _w : width
         #   _r : reduce to
+        #   _f : add frame
         #   _s : split y/[n]
         #   _c : construction (for doors)
         #   _gt : glass type (for windows)
@@ -452,6 +453,7 @@ class Building(object):
                     e_math.convert_feet(window.get('_h')) if window.get('_h') else None,
                     e_math.convert_feet(window.get('_w')) if window.get('_w') else None,
                     float(window.get('_r')) if window.get('_r') else 1,
+                    window.get('_f') and window.get('_f').startswith('y'),
                     window.get('_s') and window.get('_s').startswith('y'),
                     material,
                     (window.get('_plenum') or 'no').startswith('y')
@@ -533,8 +535,9 @@ class Building(object):
                         # Scale windows for frames
                         orig_w, orig_h = w, h
                         w, h = e_math.scale_rectangle(w, h, float(window_data.scale))
-                        x1 = x1 + (orig_w-w)/2.
-                        y1 = y1 + (orig_h-h)/2.
+                        frame_width = (orig_w-w)/2.
+                        x1 = x1 + frame_width
+                        y1 = y1 + frame_width
 
                         id_ += 1
 
@@ -555,6 +558,8 @@ class Building(object):
                             win.attr['WIDTH'] = w
                             win.attr['HEIGHT'] = h
                             win.attr['GLASS-TYPE'] = window_data.material
+                            if window_data.frame:
+                                win.attr['FRAME-WIDTH'] = frame_width
 
                         if False:
                             print
