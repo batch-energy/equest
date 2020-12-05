@@ -1,16 +1,20 @@
 from collections import OrderedDict, namedtuple, defaultdict
-import re, time, os, ref, e_math, math, utils
-from e_math import is_close, distance, angle, projected_distance, angle_distance, dist
+import re, time, os, math
 from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
 from shapely.ops import split as shapely_split
 import copy
-from client import get_client_construction, get_client_glass
 from string import ascii_lowercase
-import svg_file
-from utils import wrap, unwrap
 import operator
 from shapely.errors import TopologicalError
+
+from .utils import wrap, unwrap
+from .client import get_client_construction, get_client_glass
+from . import svg_file
+from . import e_math
+from . import utils
+from . import ref
+from .e_math import is_close, distance, angle, projected_distance, angle_distance, dist
 
 class RegenerateError(Exception):
 
@@ -62,7 +66,7 @@ class Building(object):
 
         kinds = {}
 
-        for name, obj in self.objects.items():
+        for name, obj in list(self.objects.items()):
             if obj.kind in target_kinds:
                 kinds[name] = obj
         return kinds
@@ -93,23 +97,23 @@ class Building(object):
 
         fn = fn or self.fn
 
-        if os.path.exists(fn):
-            os.remove(fn)
+        #if os.path.exists(fn):
+        #    os.remove(fn)
 
         t = ''
         defaults_written = []
         for kind in ref.kind_list:
             if kind == 'PARAMETER':
-                for parameter in self.parameters.values():
+                for parameter in list(self.parameters.values()):
                     t += parameter.write()
-            for name, default in self.defaults.items():
+            for name, default in list(self.defaults.items()):
                 if ref.in_same_group(default.kind, kind):
                     if not default in defaults_written:
                         t += default.write()
                         defaults_written.append(default)
 
-            if not kind in ref.parents.keys():
-                for _, o in sorted(self.kinds(kind).items(), order):
+            if not kind in list(ref.parents.keys()):
+                for _, o in sorted(list(self.kinds(kind).items()), order):
                     t += o.write()
 
         self.write(fn, t)
@@ -131,6 +135,15 @@ class Building(object):
             else:
                 raise Exception('%s not found' % name)
         return objects
+
+    def force_object(self, s):
+        if isinstance(s, str):
+            if not s.startswith('"'):
+                s = wrap(s)
+            return self.objects[s]
+        else:
+            return s
+
 
     def __clean_file(self, text):
         return '\n'.join([l.strip() for l in text.split('\n')
@@ -183,7 +196,7 @@ class Building(object):
             else:
                 name, kind = lines[0], lines[0]
 
-            if kind in ref.parents.keys():
+            if kind in list(ref.parents.keys()):
                 parent = current_parent[ref.parents[kind]]
             else:
                 parent = None
@@ -242,7 +255,7 @@ class Building(object):
 
         '''Floors in ascenting z'''
         return [sf[1] for sf in sorted([(f.z(), f)
-            for f in self.kinds('FLOOR').values()])]
+            for f in list(self.kinds('FLOOR').values())])]
 
     def next_name(self, template):
         i = 1
@@ -257,7 +270,7 @@ class Building(object):
 
         '''Returns a list of spaces pairs which are adjacent to one another'''
 
-        spaces = self.kinds('SPACE').values()
+        spaces = list(self.kinds('SPACE').values())
         checked_set = set()
         space_set = set(spaces)
 
@@ -313,18 +326,18 @@ class Building(object):
 
         bad_walls = []
         if bad_space_pairs:
-            print '\n  Bad Space Pairs, %s\n' % len(bad_space_pairs)
+            print(('\n  Bad Space Pairs, %s\n' % len(bad_space_pairs)))
             for pair in bad_space_pairs:
-                print '    ' + '  -  '.join(['%s : %s ' % (name, i) for (name, i) in pair])
+                print(('    ' + '  -  '.join(['%s : %s ' % (name, i) for (name, i) in pair])))
                 bad_walls +=  pair
             if make_ewall_for_bad_space_pairs is True:
-                print '\n  Exterior wall will be made for these, but they are probably not exterior walls\n'
+                print('\n  Exterior wall will be made for these, but they are probably not exterior walls\n')
             else:
-                print '\n  No walls will be made for these, but they are probably misaligned interior walls\n'
+                print('\n  No walls will be made for these, but they are probably misaligned interior walls\n')
 
 
         # Create interior walls
-        for (space_name, wall_index), adjacents in interior_walls.items():
+        for (space_name, wall_index), adjacents in list(interior_walls.items()):
             for i, (other_space_name, (lower, upper)) in enumerate(adjacents):
                 if space_name < other_space_name:
                     continue
@@ -351,7 +364,7 @@ class Building(object):
                     i.attr['CONSTRUCTION'] = construction['interior']
 
         # Create exterior walls
-        for space in self.kinds('SPACE').values():
+        for space in list(self.kinds('SPACE').values()):
             space_min = space.z_global()
             space_max = space_min + space.height()
             for i in range(1, len(space.vertices()) + 1):
@@ -377,9 +390,9 @@ class Building(object):
                     e.attr['CONSTRUCTION'] = construction['exterior']
 
     def remove_walls(self):
-        for name in [wall for wall in self.kinds('INTERIOR-WALL').keys() \
-                                         + self.kinds('EXTERIOR-WALL').keys() \
-                                         + self.kinds('UNDERGROUND-WALL').keys() ]:
+        for name in [wall for wall in list(self.kinds('INTERIOR-WALL').keys()) \
+                                         + list(self.kinds('EXTERIOR-WALL').keys()) \
+                                         + list(self.kinds('UNDERGROUND-WALL').keys()) ]:
             self.objects[name].delete()
 
 
@@ -391,16 +404,16 @@ class Building(object):
         '''Convert Ewall to Uwall if it's under a Uwall floor'''
 
         ewall_midpoints = {ewall:Point(ewall.midpoint())
-            for ewall in self.kinds('EXTERIOR-WALL').values()
+            for ewall in list(self.kinds('EXTERIOR-WALL').values())
             if ewall.is_regular_wall()}
 
         underground_floors = [ugw
-            for ugw in self.kinds('UNDERGROUND-WALL').values()
+            for ugw in list(self.kinds('UNDERGROUND-WALL').values())
             if ugw.tilt() == 180]
 
         candidates = []
         for ugf in underground_floors:
-            for ewall, ewall_midpoint in ewall_midpoints.items():
+            for ewall, ewall_midpoint in list(ewall_midpoints.items()):
                 if ewall.z_global() < ugf.z_global():
                     if ewall_midpoint.distance(ugf.parent.polygon.shapely_poly) < 1:
                         candidates.append(ewall)
@@ -472,7 +485,7 @@ class Building(object):
                 try:
                     reference_wall = self.objects[wrap(reference_wall_name)]
                 except KeyError as e:
-                    print 'Wall %s not found' % reference_wall_name
+                    print(('Wall %s not found' % reference_wall_name))
                     raise
 
                 ref_p1, ref_p2 = reference_wall.get_vertices()
@@ -561,21 +574,22 @@ class Building(object):
                             if window_data.frame:
                                 win.attr['FRAME-WIDTH'] = frame_width
 
+
                         if False:
-                            print
-                            print 'NAME      ', name
-                            print 'REFERENCE ', reference_wall_name
-                            print 'PROJECTION', projection.origin.svg_rect.id
-                            print
+                            print()
+                            print(('NAME      ', name))
+                            print(('REFERENCE ', reference_wall_name))
+                            print(('PROJECTION', projection.origin.svg_rect.id))
+                            print()
 
     def rotate_floors(self, degrees, floors=None):
 
         '''Rotate all spaces or spaces on floors'''
 
         if floors is None:
-            polygons = [space.polygon for space in self.kinds('SPACE').values()]
+            polygons = [space.polygon for space in list(self.kinds('SPACE').values())]
         else:
-            polygons = [space.polygon for space in self.kinds('SPACE').values()
+            polygons = [space.polygon for space in list(self.kinds('SPACE').values())
                 if space.parent.name in floors]
 
         for polygon in set(polygons):
@@ -586,9 +600,9 @@ class Building(object):
         '''Rotate all spaces or spaces on floors'''
 
         if floors is None:
-            polygons = [space.polygon for space in self.kinds('SPACE').values()]
+            polygons = [space.polygon for space in list(self.kinds('SPACE').values())]
         else:
-            polygons = [space.polygon for space in self.kinds('SPACE').values()
+            polygons = [space.polygon for space in list(self.kinds('SPACE').values())
                 if space.parent.name in floors]
 
         for polygon in set(polygons):
@@ -599,9 +613,9 @@ class Building(object):
         '''Rotate all spaces or spaces on floors'''
 
         if floors is None:
-            polygons = [space.polygon for space in self.kinds('SPACE').values()]
+            polygons = [space.polygon for space in list(self.kinds('SPACE').values())]
         else:
-            polygons = [space.polygon for space in self.kinds('SPACE').values()
+            polygons = [space.polygon for space in list(self.kinds('SPACE').values())
                 if space.parent.name in floors]
 
         for polygon in set(polygons):
@@ -625,7 +639,7 @@ class Building(object):
 
         # Create groups of points
         groups = []
-        for key, point in points.items():
+        for key, point in list(points.items()):
             space, verticy = key
             flag = False
             for group in groups:
@@ -654,7 +668,7 @@ class Building(object):
 
         # Assign new points if defined, or existing if not
         polygons = []
-        for space in self.kinds('SPACE').values():
+        for space in list(self.kinds('SPACE').values()):
 
             # do not adjust the same polygons more than once
             if space.polygon in polygons:
@@ -678,7 +692,7 @@ class Building(object):
             return float(sum(values)) / len(values)
 
         # Floors are done individually
-        for floor in self.kinds('FLOOR').values():
+        for floor in list(self.kinds('FLOOR').values()):
             polygons = set([space.polygon for space in floor.children])
             points = {
                 (polygon, i):point for polygon in polygons
@@ -686,7 +700,7 @@ class Building(object):
 
             # Create groups of points
             groups = []
-            for key, point in points.items():
+            for key, point in list(points.items()):
                 flag = False
                 for group in groups:
                     for other_key, other_point in group:
@@ -747,7 +761,7 @@ class Building(object):
             pairs = space_pairs
 
         for space, other_space in pairs:
-            print space, other_space
+            print((space, other_space))
             for i, line in enumerate(space.polygon.lines):
                 for j, point in enumerate(other_space.polygon.points):
 
@@ -775,7 +789,7 @@ class Building(object):
             ssp = space.shapely_poly
 
             add_points = []
-            print space.name
+            print((space.name))
 
             for other_space in spaces:
                 if space is other_space:
@@ -786,7 +800,7 @@ class Building(object):
                 if ssp.distance(ossp) > 1:
                     continue
 
-                print '  ', other_space.name
+                print(('  ', other_space.name))
                 for ls1 in space.polygon.lines:
                     for ls2 in other_space.polygon.lines:
                         if ls1.distance(ls2) > 1:
@@ -802,19 +816,19 @@ class Building(object):
                         if spt2.distance(ospt2) < 1:
                             continue
 
-                        print '        s1', spt1
-                        print '        s2', spt2
-                        print '        o1', ospt1
-                        print '        o2', ospt2
+                        print(('        s1', spt1))
+                        print(('        s2', spt2))
+                        print(('        o1', ospt1))
+                        print(('        o2', ospt2))
 
-                        print '     ', ls1, ls2
+                        print(('     ', ls1, ls2))
 
                         if spt2.distance(ospt1) > 1 and ospt1.distance(ls1) < 1:
-                            print '         ADDED 1 ', list(ospt1.coords)
+                            print(('         ADDED 1 ', list(ospt1.coords)))
                             add_points.append(ospt1)
 
                         if spt1.distance(ospt2) > 1 and ospt2.distance(ls1) < 1:
-                            print '         ADDED 2 ', list(ospt2.coords)
+                            print(('         ADDED 2 ', list(ospt2.coords)))
                             add_points.append(ospt2)
 
 
@@ -826,7 +840,9 @@ class Building(object):
             return point.distance(base_point)
 
         if spaces is None:
-            spaces = self.kinds('SPACE').values()
+            spaces = list(self.kinds('SPACE').values())
+        else:
+            spaces = [self.force_object(s) for s in spaces]
 
         added_total = True
 
@@ -862,7 +878,7 @@ class Building(object):
 
                             added_total += 1
 
-                for point_loc, added_points in sorted(add_points.items(), reverse=True):
+                for point_loc, added_points in sorted(list(add_points.items()), reverse=True):
                     base_point = space.polygon.points[point_loc]
                     added_points.sort(key=sorter, reverse=True)
                     prev_point = None
@@ -873,9 +889,12 @@ class Building(object):
                         space.polygon.add_verticy(pt, point_loc)
                         prev_point = point
 
-            print 'Added total', added_total
+            print(('Added total', added_total))
 
     def adjust_spaces_to_align(self, basespace, move_spaces):
+
+        basespace = self.force_object(basespace)
+        move_spaces = [self.force_object(s) for s in move_spaces]
 
         moved_points = []
         moved_floors = set()
@@ -894,7 +913,7 @@ class Building(object):
                         #print space.polygon.vertices
 
         for floor_name in moved_floors:
-            for space in self.kinds('SPACE').values():
+            for space in list(self.kinds('SPACE').values()):
                 if space.parent.name != floor_name:
                     continue
                 for i, point in enumerate(space.polygon.points):
@@ -907,11 +926,12 @@ class Building(object):
         self.split_interior_walls_prescribed(spaces)
         self.adjust_spaces_to_align(spaces[0], spaces[1:])
 
+
     def split_interior_walls(self, tol=1):
 
         '''Splits space where it intersects with adjacent space'''
 
-        for floor in self.kinds('FLOOR').values():
+        for floor in list(self.kinds('FLOOR').values()):
 
             added = True
             while added:
@@ -931,8 +951,8 @@ class Building(object):
                 lookup_add = {}
 
                 # finds at most one point near line
-                for (line_poly, i), line in lines.items():
-                    for (point_poly, j), point in points.items():
+                for (line_poly, i), line in list(lines.items()):
+                    for (point_poly, j), point in list(points.items()):
                         if (point_poly, j) in lookup_move or line_poly is point_poly:
                             continue
                         if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
@@ -949,11 +969,11 @@ class Building(object):
                         for i, point in enumerate(polygon.vertices)])
 
                 # add new points along lines
-                for (poly, i), point in sorted(lookup_add.items(), reverse=True):
+                for (poly, i), point in sorted(list(lookup_add.items()), reverse=True):
                     poly.add_verticy(point, i)
                     added += 1
 
-                print '    ...added %s' % added
+                print(('    ...added %s' % added))
 
 
     def create_roofs(self, tol=1, use_space_poly_tol=0.99, ratio_tol=0.05):
@@ -967,9 +987,9 @@ class Building(object):
 
         '''
 
-        for space in self.kinds('SPACE').values():
+        for space in list(self.kinds('SPACE').values()):
             running_roof_polygon = copy.copy(space.shapely_poly)
-            for other_space in self.kinds('SPACE').values():
+            for other_space in list(self.kinds('SPACE').values()):
                 if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
                     try:
                         running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
@@ -978,7 +998,7 @@ class Building(object):
                               'This line fails when a space has very narrow ' + \
                               ' corridors connecting larger pieces. ' + \
                               '"Combine close vertices collapes the corridor\n\n'
-                        print msg
+                        print(msg)
                         raise e
             if running_roof_polygon.area / space.shapely_poly.area > use_space_poly_tol:
                 roof_polygon_name_list = [space.polygon.name]
@@ -1034,9 +1054,9 @@ class Building(object):
             ratio_tol: skip when area is very small compared to perimeter
         '''
 
-        for space in spaces or self.kinds('SPACE').values():
+        for space in spaces or list(self.kinds('SPACE').values()):
             running_floor_polygon = copy.copy(space.shapely_poly)
-            for other_space in self.kinds('SPACE').values():
+            for other_space in list(self.kinds('SPACE').values()):
                 if abs(space.z_global() - (other_space.z_global() + other_space.height())) < tol:
                     try:
                         running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
@@ -1045,7 +1065,7 @@ class Building(object):
                               'This line fails when a space has very narrow ' + \
                               ' corridors connecting larger pieces. ' + \
                               '"Combine close vertices collapes the corridor\n\n'
-                        print msg
+                        print(msg)
                         raise e
 
             if running_floor_polygon.area / space.shapely_poly.area > use_space_poly_tol:
@@ -1103,7 +1123,7 @@ class Building(object):
             ratio_tol: skip when area is very small compared to perimeter
         '''
         count = 0
-        for space in self.kinds('SPACE').values():
+        for space in list(self.kinds('SPACE').values()):
             ceiling_polygons = copy.copy(space.shapely_poly)
             for i, other_space in enumerate(self.kinds('SPACE').values()):
                 if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
@@ -1114,7 +1134,7 @@ class Building(object):
                               'This line fails when a space has very narrow ' + \
                               ' corridors connecting larger pieces. ' + \
                               '"Combine close vertices collapes the corridor\n\n'
-                        print msg
+                        print(msg)
                         raise e
 
                     if isinstance(ceiling_polygon, MultiPolygon):
@@ -1163,7 +1183,7 @@ class Building(object):
         system.attr['HEAT-SOURCE'] = 'NONE'
         system.attr['CHW-LOOP'] = '"DEFAULT-CHW"'
 
-        for space in self.kinds('SPACE').values():
+        for space in list(self.kinds('SPACE').values()):
             space.make_zone()
 
     def remove_vertical_interior_walls_for_spaces_with_no_windows(self):
@@ -1176,7 +1196,7 @@ class Building(object):
         '''
 
         delete_i_walls = []
-        for name, i_wall in self.kinds('INTERIOR-WALL').items():
+        for name, i_wall in list(self.kinds('INTERIOR-WALL').items()):
 
             if not i_wall.is_vertical():
                 continue
@@ -1199,7 +1219,7 @@ class Building(object):
         '''Remove vertical interior walls'''
 
         delete_i_walls = []
-        for name, i_wall in self.kinds('INTERIOR-WALL').items():
+        for name, i_wall in list(self.kinds('INTERIOR-WALL').items()):
             if i_wall.is_vertical():
                 delete_i_walls.append(name)
 
@@ -1216,7 +1236,7 @@ class Building(object):
         '''
 
         if candidates is None:
-            candidates = self.kinds('SPACE').values()
+            candidates = list(self.kinds('SPACE').values())
 
         # Mark deletes, adjust sibling space height
         delete_space_names = []
@@ -1250,7 +1270,7 @@ class Building(object):
 
     def nudge_windows(self, buffer=0.5, trim=False, leave_if_unfit=True):
 
-        for window in self.kinds('WINDOW').values():
+        for window in list(self.kinds('WINDOW').values()):
             try:
                 win_x = window.attr['X']
                 win_y = window.attr['Y']
@@ -1271,7 +1291,7 @@ class Building(object):
 
             # TODO - consider undoing this
             if win_w + 2 * buffer > wall_w:
-                print 'Cannot fit window %s' % window.name
+                print(('Cannot fit window %s' % window.name))
                 window.attr['X'] = round(buffer, 2)
                 if trim:
                     window.attr['WIDTH'] = wall_w - 2 * buffer
@@ -1283,7 +1303,7 @@ class Building(object):
                 window.attr['X'] = round(wall_w - win_w - buffer, 2)
 
             if win_h + 2 * buffer > wall_h:
-                print 'Cannot fit window %s' % window.name
+                print(('Cannot fit window %s' % window.name))
                 window.attr['Y'] = round(buffer, 2)
                 if trim:
                     window.attr['HEIGHT'] = wall_h - 2 * buffer
@@ -1295,7 +1315,7 @@ class Building(object):
 
     def add_daylighting(self, depth=10):
 
-        for name, space in self.kinds('SPACE').items():
+        for name, space in list(self.kinds('SPACE').items()):
             windows = defaultdict(int)
 
             for e_wall in space.e_walls():
@@ -1307,7 +1327,7 @@ class Building(object):
             if not windows:
                 continue
 
-            _, wall = sorted([(v, k) for k, v in windows.items()])[-1]
+            _, wall = sorted([(v, k) for k, v in list(windows.items())])[-1]
             p1, p2 = wall.get_vertices()
             mx, my = e_math.midpoint(p1, p2)
             angle = e_math.get_angle(p1, p2, True)
@@ -1348,7 +1368,7 @@ class Default(object):
 
         t = 'SET-DEFAULT FOR %s\n' % self.kind
 
-        for k, v in self.attr.items():
+        for k, v in list(self.attr.items()):
             a = '   '
             if v != None:
                 a += k + ' = ' + str(v)
@@ -1431,7 +1451,7 @@ class Object(object):
         self.children.append(child)
 
     def inherit(self, other):
-        for name, value in other.attr.items():
+        for name, value in list(other.attr.items()):
             self.attr[name] = value
 
     def write(self):
@@ -1442,7 +1462,7 @@ class Object(object):
         else:
             t += self.name + ' = ' + self.kind + '\n'
 
-        for k, v in self.attr.items():
+        for k, v in list(self.attr.items()):
             a = '   '
             if v != None:
                 a += k + ' = ' + str(v)
@@ -1493,7 +1513,7 @@ class Object(object):
             return True
 
     def siblings(self):
-        return [o for o in self.b.kinds(self.kind).values()
+        return [o for o in list(self.b.kinds(self.kind).values())
             if o.parent==self.parent]
 
 
@@ -1658,7 +1678,7 @@ class Floor(Object):
         return (self.plenum_height > 0)
 
     def spaces(self):
-        return [space for space in self.b.kinds('SPACE').values()
+        return [space for space in list(self.b.kinds('SPACE').values())
             if space.parent==self]
 
     def duplicate(self, name, z):
@@ -1771,7 +1791,7 @@ class Space(Object):
         return self.i_walls() + self.i_walls_via_next_to()
 
     def i_walls_via_next_to(self):
-        return [i_wall for i_wall in self.b.kinds('INTERIOR-WALL').values()
+        return [i_wall for i_wall in list(self.b.kinds('INTERIOR-WALL').values())
             if i_wall.next_to().name == self.name]
 
     def i_walls(self):
@@ -1813,7 +1833,7 @@ class Space(Object):
         pass
 
     def zone(self):
-        for zone in self.b.kinds('ZONE').values():
+        for zone in list(self.b.kinds('ZONE').values()):
             if zone.get('SPACE') == self.name:
                 return zone
 
@@ -1877,7 +1897,7 @@ class Space(Object):
                 wall.attr['POLYGON'] = polygon_name
 
         for name in deletes:
-            print 'deleting ' + name
+            print(('deleting ' + name))
             self.b.objects[name].delete()
 
 
@@ -2046,7 +2066,7 @@ class Wall(Object):
 
         x_base, y_base, angle_base = x_y_angle(self)
 
-        for wall in self.b.kinds(self.kind).values():
+        for wall in list(self.b.kinds(self.kind).values()):
             if abs(self.tilt() - wall.tilt()) > 1:
                 continue
             x_target, y_target, angle_target = x_y_angle(wall)
@@ -2097,7 +2117,7 @@ class E_Wall(Wall):
                         return name
 
         uwall = U_Wall(self.b, name=get_new_uwall_name(), parent=self.parent)
-        for name, value in self.attr.items():
+        for name, value in list(self.attr.items()):
             uwall.attr[name] = value
 
         # custom map construction chanage
@@ -2115,7 +2135,7 @@ class E_Wall(Wall):
         '''Like to_uwall, but for overhang|roof >> slab conversion'''
 
         uwall = U_Wall(self.b, name=self.name[:-1] + '_1"', parent=self.parent)
-        for name, value in self.attr.items():
+        for name, value in list(self.attr.items()):
             uwall.attr[name] = value
         uwall.attr['CONSTRUCTION'] = get_client_construction()['underground_slab']
 
@@ -2139,7 +2159,7 @@ class E_Wall(Wall):
 
     def chain(self, count):
 
-        floor_ewalls = [ew for ew in self.b.kinds('EXTERIOR-WALL').values()
+        floor_ewalls = [ew for ew in list(self.b.kinds('EXTERIOR-WALL').values())
             if ew.parent.parent.name == self.parent.parent.name and ew.is_regular_wall()]
 
         chain = [self]
@@ -2187,7 +2207,7 @@ class U_Wall(Wall):
                         return name
 
         ewall = E_Wall(self.b, name=get_new_ewall_name(), parent=self.parent)
-        for name, value in self.attr.items():
+        for name, value in list(self.attr.items()):
             ewall.attr[name] = value
 
         # custom map construction chanage
@@ -2314,10 +2334,10 @@ class Comparison():
 
         self.b1 = b1
         self.b2 = b2
-        self.object_keys = list(set(b1.objects.keys() + b2.objects.keys()))
+        self.object_keys = list(set(list(b1.objects.keys()) + list(b2.objects.keys())))
         self.object_keys_common = list(set(b1.objects.keys()) & set(b2.objects.keys()))
 
-        self.default_keys = list(set(b1.defaults.keys() + b2.defaults.keys()))
+        self.default_keys = list(set(list(b1.defaults.keys()) + list(b2.defaults.keys())))
         self.default_keys_common = list(set(b1.defaults.keys()) & set(b2.defaults.keys()))
 
         self.messages = []
@@ -2355,13 +2375,13 @@ class Comparison():
             base = copy.deepcopy(self.b2)
             overwrite = self.b1
 
-        for name, object in overwrite.objects.items():
+        for name, object in list(overwrite.objects.items()):
             if not name in base.objects:
                 base.objects[name] = object
             else:
                 base.objects[name].attr.update(object.attr)
 
-        for key, default in overwrite.defaults.items():
+        for key, default in list(overwrite.defaults.items()):
             if not key in base.defaults:
                 base.defaults[key] = default
             else:
@@ -2410,10 +2430,10 @@ def split_roof(roof, points, combine_tolerance=0.5):
     # Split polygon
     split = shapely_split(shapely_poly, LineString(adjusted_points))
     if len(split) == 1:
-        print 'No split occured for %s' % roof.name
+        print(('No split occured for %s' % roof.name))
         return
 
-    print 'Split %s into %s' % (roof.name, len(split))
+    print(('Split %s into %s' % (roof.name, len(split))))
 
     # Create new objects
     for polygon_new in split:
@@ -2524,11 +2544,11 @@ def sloped_wall(wall, base_point, other_point):
 
 def merge(base, other):
 
-    for name, object in other.objects.items():
+    for name, object in list(other.objects.items()):
         if not name in base.objects:
             base.objects[name] = object
 
-    for key, default in other.defaults.items():
+    for key, default in list(other.defaults.items()):
         if not key in base.defaults:
             base.defaults[key] = default
 
@@ -2561,9 +2581,9 @@ def identify_candidate_adjacent_walls():
                     continue
                 bad_wall_pairs.append(wall_pair)
 
-    print 'discovered %s wall_pairs' % len(wall_pairs)
-    print 'discovered %s bad_wall_pairs' % len(bad_wall_pairs)
-    print bad_wall_pairs
+    print(('discovered %s wall_pairs' % len(wall_pairs)))
+    print(('discovered %s bad_wall_pairs' % len(bad_wall_pairs)))
+    print(bad_wall_pairs)
 
 if __name__ == '__main__':
 
@@ -2571,9 +2591,9 @@ if __name__ == '__main__':
     b1.load(os.path.join('compare', 'b1.inp'))
 
     for object in b1.objects:
-        print object
+        print(object)
         for attr in object.attrs:
-            print attr
+            print(attr)
 
     b2 = Building()
     b1.load(os.path.join('compare', 'b1.inp'))
@@ -2581,9 +2601,9 @@ if __name__ == '__main__':
 
 
 
-    print "done"
+    print("done")
     compare = Comparison(b1, b2)
-    print compare
+    print(compare)
     #b1.dump('compare/test1.inp')
     #b2.dump('compare/test2.inp')
     #b3 = compare.combine(resolve=Comparison.LEFT)

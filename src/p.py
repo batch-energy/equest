@@ -15,24 +15,24 @@
 import os
 import sys
 import shutil
-import utils
+from . import utils
 import subprocess
 
 def main():
 
     if not os.path.exists('process.py'):
-        print '\n  First run, configuring...'
-        print '\n    Which client?'
-        print
+        print('\n  First run, configuring...')
+        print('\n    Which client?')
+        print()
         client = utils.choices(['dmi', 'tnz', 'smma', 'none'])
-        print '\n    copying seed file to local dir'
+        print('\n    copying seed file to local dir')
         shutil.copy(utils.client_seed_file(client), os.getcwd())
-        print '\n    copying template process.py to local dir'
+        print('\n    copying template process.py to local dir')
         process_py_path = os.path.dirname(utils.__file__) + os.sep + 'process.py'
         shutil.copy(process_py_path, os.getcwd())
-        print '\n  All set. Will open process.py'
-        print
-        raw_input('  >>')
+        print('\n  All set. Will open process.py')
+        print()
+        eval(input('  >>'))
         subprocess.Popen('"C:\Program Files\Just Great Software\EditPad Pro 8\EditPadPro8.exe" process.py')
     else:
         backup = 'backup.inp'
@@ -42,7 +42,7 @@ def main():
         cmd ='python process.py ' + ' '.join(sys.argv[1:])
         os.system(cmd)
         try:
-            raw_input('Open eQuest - press enter to continue')
+            eval(input('Open eQuest - press enter to continue'))
         finally:
             if os.path.exists(backup):
                 shutil.copy(backup, input_file)

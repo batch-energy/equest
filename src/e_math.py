@@ -94,10 +94,10 @@ def pdis(x1, y1, a, xt, yt, tol):
     ac = xt-x1, yt-y1          # vector ac
     d = math.fabs(ac[0]*n[0]+ac[1]*n[1]) # Projection of ac to n (the minimum distance)
     if (d < tol):
-        print '        %s is less than %s' % (d, tol)
+        print(('        %s is less than %s' % (d, tol)))
         return True
     else:
-        print '        %s is more than %s' % (d, tol)
+        print(('        %s is more than %s' % (d, tol)))
         return False
 
 def components(origin, line_point, point):
@@ -106,7 +106,7 @@ def components(origin, line_point, point):
     point = shapely.geometry.Point(point)
     x = base_line.distance(point)
     y = (point_line.length**2 - x**2)**0.5
-    print x, y
+    print((x, y))
 
 
 def scale_rectangle(w, h, factor):
@@ -218,8 +218,8 @@ def main():
     range = [0,15]
     pairs = []
     o, n = overlap_split(range, pairs)
-    print o
-    print n
+    print(o)
+    print(n)
 
 if __name__ == '__main__':
     main()

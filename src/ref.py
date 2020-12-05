@@ -1,4 +1,5 @@
-import utils, re
+from . import utils
+import re
 
 clients = ['dmi', 'tnz']
 
@@ -129,7 +130,7 @@ kind_list = [
 
 
 def is_child(object_kind):
-    return any([object_kind == value for value in parents.values()])
+    return any([object_kind == value for value in list(parents.values())])
 
 def is_parent(object_kind):
     return object_kind in parents
@@ -138,7 +139,7 @@ def in_same_group(kind1, kind2):
     if kind1 == kind2:
         return True
     for group in parental_groups:
-        if all([k in group for k in kind1, kind2]):
+        if all([k in group for k in (kind1, kind2)]):
             return True
     return False
 

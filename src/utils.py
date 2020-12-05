@@ -1,4 +1,5 @@
-import os, utils, textwrap, re
+import os, textwrap, re
+from . import utils
 from collections import defaultdict
 
 def last_split_point(s, max):
@@ -15,7 +16,7 @@ def last_split_point(s, max):
         else:
             split_point = i
     if not split_point:
-        print s
+        print(s)
         raise Exception('Could not find split point')
     else:
         return split_point
@@ -111,9 +112,9 @@ def choices(l, quit=False):
 
     while True:
         for i, choice in enumerate(l, 1):
-            print ('  %s - %s') % (i, choice)
-        print
-        resp = raw_input('  > ')
+            print((('  %s - %s') % (i, choice)))
+        print()
+        resp = eval(input('  > '))
         if resp:
             if resp.isdigit() and (int(resp) <= (len(l))):
                 return l[int(resp) - 1]
@@ -133,7 +134,7 @@ def input_file_name():
 def make_floor_data(data, positions):
 
     attrs = defaultdict(dict)
-    for floor_name, floor_data in data.items():
+    for floor_name, floor_data in list(data.items()):
         for key, value in zip(positions, floor_data):
             attrs[floor_name][key] = value
 

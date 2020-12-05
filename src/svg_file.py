@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from e_math import convert_feet
+from .e_math import convert_feet
 import shlex
 
 
@@ -20,7 +20,7 @@ class Svg_Page():
         self.__make_rects()
 
         if not self.scale_rect:
-            print "No Scale"
+            print("No Scale")
         else:
             self.__assign_origins
 
@@ -43,7 +43,7 @@ class Svg_Page():
 
             if 'scale' in str(svg_rect.title):
                 if self.scale_rect:
-                    print "Error: Multiple scales"
+                    print("Error: Multiple scales")
                 else:
                     self.scale_rect = Svg_Scale(svg_rect)
                     self.scale = self.scale_rect.scale
@@ -107,7 +107,7 @@ class Svg_Rectangle():
         self.id = xml_rect.attrib['id']
 
         if 'transform' in xml_rect.attrib:
-            print 'Error: Some elements tranformed, which disrupts parsing (%s / %s)' % (self.title, self.id)
+            print(('Error: Some elements tranformed, which disrupts parsing (%s / %s)' % (self.title, self.id)))
 
         self.style = {}
         for kv in xml_rect.attrib['style'].split(';'):
@@ -169,5 +169,5 @@ class Svg_Window():
         return self.color + '-' + str(self.opacity)
 if __name__ == '__main__':
     svg = Svg_Page('e1.svg')
-    print svg.colors()
+    print((svg.colors()))
 

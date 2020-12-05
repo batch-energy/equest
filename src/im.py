@@ -3,10 +3,10 @@ import re
 import sys
 import os
 
-from e_math import convert_feet, distance, is_close
-import eo
-import utils
-import ref
+from .e_math import convert_feet, distance, is_close
+from . import eo
+from . import utils
+from . import ref
 
 import PyPDF2
 
@@ -50,7 +50,7 @@ class Pdf_File(object):
 
         '''Build PDF File object from pdf annotations'''
 
-        for page_number, annotations in self.annotations.items():
+        for page_number, annotations in list(self.annotations.items()):
 
             for annotation in annotations:
 
@@ -81,7 +81,7 @@ class Pdf_File(object):
 
         valid_poly_attrs = ['Z', 'H', 'HP', 'PH', 'X', 'Y', 'S']
 
-        for name, page in self.pages.items():
+        for name, page in list(self.pages.items()):
 
             # check spaces
             floor_name_counter = Counter()
@@ -97,7 +97,7 @@ class Pdf_File(object):
                     space_names_set.add(polygon.name)
                 floor_name_counter[polygon.name.split('-')[0]] += 1
 
-                for key in polygon.attrs.keys():
+                for key in list(polygon.attrs.keys()):
                     if not key in valid_poly_attrs:
                         self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
@@ -124,7 +124,7 @@ class Pdf_File(object):
             if page.scale is None:
                 self.messages.append('Page %s has no scale' % (page.name))
 
-        for name, count in Counter([page.name for page in self.pages.values()]).items():
+        for name, count in list(Counter([page.name for page in list(self.pages.values())]).items()):
             if count > 1:
                 self.messages.append('Floor %s is defined multiple items' % name)
 
@@ -134,7 +134,7 @@ class Pdf_File(object):
 
         b = eo.Building()
 
-        for name, page in self.pages.items():
+        for name, page in list(self.pages.items()):
 
             floor = eo.Floor(b, name=utils.wrap(page.name))
             floor.attr['Z'] = page.origin.attrs['Z']
@@ -410,7 +410,7 @@ def from_pdf(pdf_file, seed_file, attrs=None):
     pdf = Pdf_File(pdf_file, attrs)
     if pdf.messages:
         for message in pdf.messages:
-            print ' ', message
+            print((' ', message))
         return None
 
     pdf_building = pdf.create()
@@ -419,8 +419,8 @@ def from_pdf(pdf_file, seed_file, attrs=None):
 
     if pdf.messages:
         for message in pdf.messages:
-            print ' ', message
-        raw_input()
+            print((' ', message))
+        eval(input())
 
     return b
 
@@ -430,7 +430,7 @@ def create(pdf, seed_file, attrs=None):
 
     b = from_pdf(pdf, seed_file, attrs)
     if b is None:
-        print '  Exiting...'
+        print('  Exiting...')
         return -1
     else:
         b.dump(utils.input_file_name())
