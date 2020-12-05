@@ -1,8 +1,11 @@
+import os
+os.add_dll_directory(r'"C:\OSGeo4W64\bin')
+
 import os, sys, time
-from . import eo
-from . import e_math
-from . import im
-from . import utils
+import eo
+import e_math
+import im
+import utils
 
 def phase_0(pdf_file):
 

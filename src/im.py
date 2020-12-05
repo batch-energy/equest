@@ -3,10 +3,10 @@ import re
 import sys
 import os
 
-from .e_math import convert_feet, distance, is_close
-from . import eo
-from . import utils
-from . import ref
+from e_math import convert_feet, distance, is_close
+import eo
+import utils
+import ref
 
 import PyPDF2
 
@@ -368,7 +368,7 @@ class Pdf_Polygon(object):
 
 def process_name(s):
 
-    
+
     normalized = re.sub(r'[\[\]\;\(\)]', ' ', s)
 
     name_parts = []
@@ -401,7 +401,7 @@ def from_pdf(pdf_file, seed_file, attrs=None):
 
     project_name = os.getcwd().split(os.sep)[-1]
 
-    with open(project_name + '.pd2', 'wb') as f:
+    with open(project_name + '.pd2', 'w') as f:
         f.write(utils.project_pd2_text(project_name))
 
     b = eo.Building()
@@ -410,7 +410,7 @@ def from_pdf(pdf_file, seed_file, attrs=None):
     pdf = Pdf_File(pdf_file, attrs)
     if pdf.messages:
         for message in pdf.messages:
-            print((' ', message))
+            print(' ', message)
         return None
 
     pdf_building = pdf.create()
@@ -419,8 +419,8 @@ def from_pdf(pdf_file, seed_file, attrs=None):
 
     if pdf.messages:
         for message in pdf.messages:
-            print((' ', message))
-        eval(input())
+            print(' ', message)
+        input()
 
     return b
 

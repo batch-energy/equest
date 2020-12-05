@@ -8,13 +8,13 @@ from string import ascii_lowercase
 import operator
 from shapely.errors import TopologicalError
 
-from .utils import wrap, unwrap
-from .client import get_client_construction, get_client_glass
-from . import svg_file
-from . import e_math
-from . import utils
-from . import ref
-from .e_math import is_close, distance, angle, projected_distance, angle_distance, dist
+from utils import wrap, unwrap
+from client import get_client_construction, get_client_glass
+import svg_file
+import e_math
+import utils
+import ref
+from e_math import is_close, distance, angle, projected_distance, angle_distance, dist
 
 class RegenerateError(Exception):
 

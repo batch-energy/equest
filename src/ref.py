@@ -1,5 +1,5 @@
-from . import utils
 import re
+import utils
 
 clients = ['dmi', 'tnz']
 

@@ -1,5 +1,4 @@
 import os, textwrap, re
-from . import utils
 from collections import defaultdict
 
 def last_split_point(s, max):
@@ -112,9 +111,9 @@ def choices(l, quit=False):
 
     while True:
         for i, choice in enumerate(l, 1):
-            print((('  %s - %s') % (i, choice)))
+            print(('  %s - %s') % (i, choice))
         print()
-        resp = eval(input('  > '))
+        resp = input('  > ')
         if resp:
             if resp.isdigit() and (int(resp) <= (len(l))):
                 return l[int(resp) - 1]
