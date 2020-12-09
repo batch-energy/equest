@@ -113,7 +113,7 @@ class Building(object):
                         defaults_written.append(default)
 
             if not kind in list(ref.parents.keys()):
-                for _, o in sorted(list(self.kinds(kind).items()), order):
+                for _, o in sorted(list(self.kinds(kind).items())):
                     t += o.write()
 
         self.write(fn, t)
@@ -969,7 +969,7 @@ class Building(object):
                         for i, point in enumerate(polygon.vertices)])
 
                 # add new points along lines
-                for (poly, i), point in sorted(list(lookup_add.items()), reverse=True):
+                for (poly, i), point in list(lookup_add.items()):
                     poly.add_verticy(point, i)
                     added += 1
 
