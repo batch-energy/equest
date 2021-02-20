@@ -1,9 +1,18 @@
-import os, sys
-import eo, e_math, time, im, utils
+import os
+try:
+    os.add_dll_directory(r'"C:\OSGeo4W64\bin')
+except AttributeError:
+    pass
+
+import os, sys, time
+import eo
+import e_math
+import im
+import utils
 
 def phase_0(pdf_file):
 
-    print '  Importing from PDF'
+    print('  Importing from PDF')
 
     floor_data = {
         'B': [-11.5, 11.5, 'N', 0],
@@ -20,26 +29,26 @@ def phase_0(pdf_file):
 
 def phase_2(b):
 
-    print '  Rotating Spaces'
+    print('  Rotating Spaces')
     b.rotate_floors(90)
 
 def phase_4(b):
 
-    print '  Combining Close Verteces'
+    print('  Combining Close Verteces')
     b.combine_close_vertices_within_floor(tol=0.5)
 
-    print '  Splitting Interior Polygon Sides'
+    print('  Splitting Interior Polygon Sides')
     b.split_interior_walls(tol=0.5)
 
 def phase_6(b):
 
-    print '  Making Walls'
+    print('  Making Walls')
     b.make_walls(short_iwall_names=True)
-    print '  Making Roofs'
+    print('  Making Roofs')
     b.create_roofs()
-    print '  Making Ceilings'
+    print('  Making Ceilings')
     b.create_ceilings()
-    print '  Making Floors'
+    print('  Making Floors')
     b.create_floors()
 
     for floor in b.get_objects('B'):
@@ -50,10 +59,11 @@ def phase_6(b):
 
 def phase_8(b):
 
-    print '  Importing Windows'
+    print('  Importing Windows')
     for name in b.kinds(['WINDOW', 'DOOR']):
         b.objects[name].delete()
     b.make_windows('e1.svg')
+    b.validate_windows()
 
 def main():
 
@@ -93,5 +103,5 @@ def main():
     b.dump()
 
 if __name__ == '__main__':
-    main()    
+    main()
 
