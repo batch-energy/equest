@@ -1,4 +1,5 @@
 from collections import OrderedDict, namedtuple, defaultdict
+from operator import attrgetter
 import re, time, os, ref, e_math, math, utils
 from e_math import is_close, distance, angle, projected_distance, angle_distance, dist
 from shapely.geometry import Polygon as ShapelyPoly
@@ -463,6 +464,11 @@ class Building(object):
             if not color in color_map:
                 raise Exception('Color %s not defined' % color)
 
+        # These track probems in window takeoffs
+        reference_wall_names = defaultdict(list)
+        wall_windows = defaultdict(list)
+        used_window_colors = set()
+
         for projection in svg.projections:
 
             # This loop because it's possible for projection to
@@ -472,8 +478,12 @@ class Building(object):
                 try:
                     reference_wall = self.objects[wrap(reference_wall_name)]
                 except KeyError as e:
-                    print 'Wall %s not found' % reference_wall_name
+                    print('Wall %s not found (%s)' % (reference_wall_name, \
+                        projection.origin.svg_rect.id))
                     raise
+
+                reference_wall_names[reference_wall_name].append(
+                    projection.origin.svg_rect.id)
 
                 ref_p1, ref_p2 = reference_wall.get_vertices()
 
@@ -495,8 +505,9 @@ class Building(object):
                     wall_y2 = wall_y1 + wall_height
 
                     for i, window in enumerate(projection.windows, 1):
-
-                        window_data = color_map[window.color_id()]
+                        color_id = window.color_id()
+                        used_window_colors.add(color_id)
+                        window_data = color_map[color_id]
 
                         # Plenum walls normally ignored
                         if window_data.plenum == False and wall.parent.is_plenum():
@@ -567,6 +578,74 @@ class Building(object):
                             print 'REFERENCE ', reference_wall_name
                             print 'PROJECTION', projection.origin.svg_rect.id
                             print
+
+
+        for reference_wall_name, svg_rects in reference_wall_names.items():
+            if len(svg_rects) > 1:
+                print('  Error for %s' % reference_wall_name)
+                print('    has multiple rectangles: %s' % ', '.join(svg_rects))
+
+        if True:
+            # Print wond attrs when creating windows
+            for color_id in sorted(used_window_colors):
+                win = color_map[color_id]
+                if win.kind == 'door':
+                    continue
+                print ('\n  %s : %s (%s)' % (win.title, unwrap(win.material), color_id))
+                for attr, value in sorted(win._asdict().items()):
+                    if attr == 'kind' and value=='door':
+                        continue
+                    if attr in ['kind', 'material', 'title']:
+                        continue
+                    if attr in ['height', 'width'] and value is None:
+                        continue
+                    print('    %s %s' % (attr, value))
+            print('')
+
+    def validate_windows(self):
+
+        off_wall = dict()
+        bad_pairs = defaultdict(set)
+        for wall in self.kinds('EXTERIOR-WALL').values():
+            for window in wall.windows():
+                for other_window in wall.windows():
+                    if window is other_window:
+                        continue
+                    pair = tuple(sorted([window.name, other_window.name]))
+                    if pair in bad_pairs[wall.name]:
+                        continue
+                    elif window.within(other_window):
+                        bad_pairs[wall.name].add(pair)
+                    elif other_window.within(window):
+                        bad_pairs[wall.name].add(pair)
+
+                # TODO: need to adjust for polygon wall defintion with window
+                max_off = max(
+                    [0 - (window.x() - window.frame_width()),
+                     window.x() + window.width() + window.frame_width() - wall.width(),
+                     0 - (window.y() - window.frame_width()),
+                     window.y() + window.height() + window.frame_width() - wall.height()])
+                if max_off > 0:
+                    off_wall[window.name] = max_off
+
+        if any([prs for prs in bad_pairs.values()]):
+            print('  Some windows overlap')
+            for wall, window_names in sorted(bad_pairs.items()):
+                if window_names:
+                    print('    %s' % wall)
+                    for name1, name2 in window_names:
+                        print('      %s / %s' % (name1, name2))
+            print('')
+        else:
+            print('  No Overlapping windows\n')
+
+        if off_wall:
+            print('  Some windows are off the walls')
+            for wall_name, off_by in sorted(off_wall.items()):
+                print('    %s (%s) ' % (wall_name, round(off_by, 2)))
+            print('')
+        else:
+            print('  No windows are off walls\n')
 
     def rotate_floors(self, degrees, floors=None):
 
