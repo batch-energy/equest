@@ -2304,10 +2304,29 @@ class Wall_Object(Object):
         Object.__init__(self, b, name, kind, parent)
 
     def x(self):
-        self.get('X')
+        return self.get('X')
 
     def y(self):
-        self.get('Y')
+        return self.get('Y')
+
+    def width(self):
+        return self.get('WIDTH')
+
+    def height(self):
+        return self.get('HEIGHT')
+
+    def x2(self):
+        return self.x() + self.width()
+
+    def y2(self):
+        return self.y() + self.height()
+
+    def center(self):
+        return((self.x() + self.width()/2, self.y() + self.height()/2))
+
+    def within(self, other):
+        x, y = self.center()
+        return other.x() < x < other.x2() and other.y() < y < other.y2()
 
     def x_global(self):
         pass #TODO - make this as needed
@@ -2360,6 +2379,9 @@ class Window(Wall_Object):
 
     def area(self):
         return round(float(self.attr['WIDTH']) * float(self.attr['HEIGHT']), 2)
+
+    def frame_width(self):
+        return self.get('FRAME-WIDTH')
 
 
 class Door(Wall_Object):
