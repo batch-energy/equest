@@ -15,7 +15,6 @@ def last_split_point(s, max):
         else:
             split_point = i
     if not split_point:
-        print(s)
         raise Exception('Could not find split point')
     else:
         return split_point

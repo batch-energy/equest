@@ -6,7 +6,7 @@ clients = ['dmi', 'tnz']
 spaces_json = 'spaces.json'
 
 
-numeric = ['X', 'Y', 'Z', 'HEIGHT', 'WIDTH', 'SPACE-HEIGHT', 'FLOOR-HEIGHT', 'TILT', 'AZIMUTH']
+numeric = ['X', 'Y', 'Z', 'HEIGHT', 'WIDTH', 'SPACE-HEIGHT', 'FLOOR-HEIGHT', 'TILT', 'AZIMUTH', 'FRAME-WIDTH']
 
 parents = {
             'SPACE' : 'FLOOR',

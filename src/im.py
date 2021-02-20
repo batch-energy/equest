@@ -24,7 +24,8 @@ class Pdf_File(object):
         self.pdf_path = pdf_path
         self.annotations = defaultdict(list)
         self.pages = OrderedDict()
-        self.messages = []
+        self.errors = []
+        self.warnings = []
 
         self.__provided_attrs = attrs or {}
 
@@ -32,7 +33,7 @@ class Pdf_File(object):
         self.__build()
         self.__verify_specials()
 
-        if self.messages:
+        if self.errors:
             return
 
     def __define_annotations(self):
@@ -66,12 +67,12 @@ class Pdf_File(object):
                     if pdf_page.origin is None:
                         pdf_page.origin = Pdf_Origin(annotation)
                     else:
-                        self.messages('Page %s has multiple origins' % page_number)
+                        self.errors('Page %s has multiple origins' % page_number)
                 elif annotation.get('/T', '').lower().startswith('scale'):
                     if pdf_page.scale is None:
                         pdf_page.scale = Pdf_Scale(annotation)
                     else:
-                        self.messages('Page %s has multiple scales' % page_number)
+                        self.errors('Page %s has multiple scales' % page_number)
                 elif annotation.get('/Subtype') == '/Polygon':
                     pdf_page.polygons.append(Pdf_Polygon(annotation))
 
@@ -89,30 +90,37 @@ class Pdf_File(object):
             for polygon in page.polygons:
 
                 if not polygon.name.count('-') == 1:
-                    self.messages.append('Space %s has wrong number of hyphens' % (polygon.name))
+                    self.errors.append('Space %s has wrong number of hyphens' % (polygon.name))
 
                 if polygon.name in space_names_set:
-                    self.messages.append('Space %s is defined multiple times' % (polygon.name))
-                else:
-                    space_names_set.add(polygon.name)
-                floor_name_counter[polygon.name.split('-')[0]] += 1
+                    orig_name = polygon.name
+                    while polygon.name[-1].isdigit():
+                        polygon.name= polygon.name[:-1]
+                    i = 2
+                    while polygon.name + str(i) in space_names_set:
+                        i += 1
+                    polygon.name = polygon.name + str(i)
+                    self.warnings.append('Space %s renamed to %s' % (orig_name, polygon.name))
+
+                space_names_set.add(polygon.name)
+                floor_name_counter[polygon.name[0]] += 1
 
                 for key in list(polygon.attrs.keys()):
                     if not key in valid_poly_attrs:
-                        self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
+                        self.errors.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
             common = floor_name_counter.most_common(1)
             if not common:
-                self.messages.append('No spaces on page %s' % name)
+                #self.errors.append('Warning, no spaces on page %s' % name)
                 continue
 
             floor_name = common[0][0]
             if len(floor_name_counter) > 1:
-                self.messages.append('Floor %s has spaces assigned to multiple floors' % (floor_name))
+                self.errors.append('Floor %s has spaces assigned to multiple floors' % (floor_name))
 
             for key in page.origin.attrs:
                 if not key in valid_poly_attrs:
-                    self.messages.append('Invalid attribute "%s" in %s' % (key, polygon.name))
+                    self.errors.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
             # assign floor name from dominent space
             page.name = floor_name
@@ -122,11 +130,11 @@ class Pdf_File(object):
                 page.origin.attrs = self.__provided_attrs[floor_name]
 
             if page.scale is None:
-                self.messages.append('Page %s has no scale' % (page.name))
+                self.errors.append('Page %s has no scale' % (page.name))
 
-        for name, count in list(Counter([page.name for page in list(self.pages.values())]).items()):
-            if count > 1:
-                self.messages.append('Floor %s is defined multiple items' % name)
+        for name, count in Counter([page.name for page in list(self.pages.values())]).items():
+            if name is not None and count > 1:
+                self.errors.append('Floor %s is defined multiple items' % name)
 
     def create(self):
 
@@ -135,6 +143,9 @@ class Pdf_File(object):
         b = eo.Building()
 
         for name, page in list(self.pages.items()):
+
+            if page.name is None:
+                continue
 
             floor = eo.Floor(b, name=utils.wrap(page.name))
             floor.attr['Z'] = page.origin.attrs['Z']
@@ -218,7 +229,7 @@ class Pdf_File(object):
                 if i >= j - 1:
                     continue
                 if distance(pt1, pt2) < 0.5:
-                    self.messages.append(('Points in polygon %s has vertices'
+                    self.errors.append(('Points in polygon %s has vertices'
                         ' %s and %s defined too closely together ' % (
                         fdf_polygon.name, i, j)))
 
@@ -262,7 +273,7 @@ class Pdf_File(object):
         name = '"' + fdf_polygon.name + '"'
 
         if len(name) > 23:
-            self.messages.append(
+            self.errors.append(
                 'Name %s is too long, shorten by %s' %
                 (name, len(name) - 23))
 
@@ -368,8 +379,10 @@ class Pdf_Polygon(object):
 
 def process_name(s):
 
+    if ' ' in s.split('[')[0]:
+        raise Exception('Space in name "%s"' % s)
 
-    normalized = re.sub(r'[\[\]\;\(\)]', ' ', s)
+    normalized = re.sub(r'[\[\]\;\(\)\,]', ' ', s)
 
     name_parts = []
     attrs_parts = []
@@ -408,19 +421,22 @@ def from_pdf(pdf_file, seed_file, attrs=None):
     b.load(seed_file)
 
     pdf = Pdf_File(pdf_file, attrs)
-    if pdf.messages:
-        for message in pdf.messages:
-            print(' ', message)
-        return None
 
     pdf_building = pdf.create()
 
     b.extend(pdf_building)
 
-    if pdf.messages:
-        for message in pdf.messages:
-            print(' ', message)
-        input()
+    if pdf.warnings:
+        print('  WARNINGS')
+        for warning in pdf.warnings:
+            print('    %s' % warning)
+
+    if pdf.errors:
+        print('  ERRORS')
+        for error in pdf.errors:
+            print ('    %s' % errors)
+        raw_input()
+        return None
 
     return b
 

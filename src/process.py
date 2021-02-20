@@ -1,5 +1,8 @@
 import os
-os.add_dll_directory(r'"C:\OSGeo4W64\bin')
+try:
+    os.add_dll_directory(r'"C:\OSGeo4W64\bin')
+except AttributeError:
+    pass
 
 import os, sys, time
 import eo
@@ -60,6 +63,7 @@ def phase_8(b):
     for name in b.kinds(['WINDOW', 'DOOR']):
         b.objects[name].delete()
     b.make_windows('e1.svg')
+    b.validate_windows()
 
 def main():
 
