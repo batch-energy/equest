@@ -144,6 +144,9 @@ class Pdf_File(object):
 
         for name, page in self.pages.items():
 
+            if page.name is None:
+                continue
+
             floor = eo.Floor(b, name=utils.wrap(page.name))
             floor.attr['Z'] = page.origin.attrs['Z']
 
