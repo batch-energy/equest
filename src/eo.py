@@ -982,6 +982,10 @@ class Building(object):
                             space.polygon.set_verticy( base_point.coords[0], i)
 
 
+    def magic_align_by_name(self, *space_names):
+        print(space_names)
+        self.magic_align(self.get_objects(*space_names))
+
     def magic_align(self, spaces):
         self.split_interior_walls_prescribed(spaces)
         self.adjust_spaces_to_align(spaces[0], spaces[1:])
