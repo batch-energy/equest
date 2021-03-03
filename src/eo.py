@@ -1661,6 +1661,9 @@ class Object(object):
         else:
             return None
 
+    def set(self, name, value):
+        self.attr[name] = value
+
     def filter(self, attr, min=None, max=None, l=None, like=None):
         if l and self.attr[attr] in l:
             return True
