@@ -103,7 +103,13 @@ class Pdf_File(object):
                     self.warnings.append('Space %s renamed to %s' % (orig_name, polygon.name))
 
                 space_names_set.add(polygon.name)
-                floor_name_counter[polygon.name[0]] += 1
+                # This controls the rules for determining the floor name
+                if os.environ['USE_FIRST_CHARACTER_AS_FLOOR_GROUING']:
+                    # first character
+                    floor_name_counter[polygon.name[0]] += 1
+                else:
+                    # All charactors before the hyphen
+                    floor_name_counter[polygon.name.split('-')[0]] += 1
 
                 for key in polygon.attrs.keys():
                     if not key in valid_poly_attrs:
