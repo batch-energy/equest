@@ -640,7 +640,7 @@ class Building(object):
             print('  No Overlapping windows\n')
 
         if off_wall:
-            print('  Some windows are off the walls')
+            print('  Some windows are off the walls (%s)' % len(off_wall))
             for wall_name, off_by in sorted(off_wall.items()):
                 print('    %s (%s) ' % (wall_name, round(off_by, 2)))
             print('')
