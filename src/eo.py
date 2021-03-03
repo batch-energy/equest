@@ -4,7 +4,7 @@ import re, time, os, ref, e_math, math, utils
 from e_math import is_close, distance, angle, projected_distance, angle_distance, dist
 from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
-from shapely.ops import split as shapely_split
+from shapely.ops import split as shapely_split, nearest_points
 import copy
 from client import get_client_construction, get_client_glass
 from string import ascii_lowercase
@@ -989,6 +989,104 @@ class Building(object):
     def magic_align(self, spaces):
         self.split_interior_walls_prescribed(spaces)
         self.adjust_spaces_to_align(spaces[0], spaces[1:])
+
+    def align_all_to_this(self, points):
+
+        '''Forces all spaces along provided points to share wall vertices'''
+
+        def loc(obj):
+            if isinstance(obj, Point):
+                return obj.coords[0]
+            elif isinstance(obj, LineString):
+                return list(obj.coords)
+
+        def segs(ls):
+            return zip(ls.coords[:-1], ls.coords[1:])
+
+        # Make linestring from points provided
+        ls = LineString(points)
+        ls_pts = [Point(p) for p in ls.coords]
+
+        # Find all spaces near that linestring
+        spaces = [s for s in self.kinds('SPACE').values()
+            if s.shapely_poly.distance(ls) < 1]
+
+        # Move all close points to provided linestring.
+        # Shared points will remain aligned since they are treated equally
+        points = set()
+        for space in spaces:
+            poly_points = []
+            poly = space.polygon
+            for verticy in poly.vertices:
+                point = Point(verticy)
+                if point.distance(ls) < 1:
+                    for pt in ls_pts:
+                        if point.distance(pt) < 1:
+                            poly_points.append(loc(pt))
+                            points.add(loc(pt))
+                            break
+                    else:
+                        new_point = list(nearest_points(ls, point)[0].coords)[0]
+                        poly_points.append(new_point)
+                        points.add(new_point)
+                else:
+                    poly_points.append(list(point.coords)[0])
+            poly.set_vertices(poly_points)
+
+        # Make a map of all of the points that need to be consolidated
+        # because they are close to one another
+        point_locs = set()
+        update_map = {}
+        for i, (near_loc, far_loc) in enumerate(segs(ls)):
+            ls_points = []
+            near_point, far_point = Point(near_loc), Point(far_loc)
+            for point_loc in points:
+                point = Point(point_loc)
+                if point.distance(near_point) > 0.001 and \
+                        point.distance(far_point) > 0.001 and \
+                        point.distance(LineString([near_loc, far_loc])) < 0.001:
+                    ls_points.append((point.distance(near_point), point_loc))
+            current = None
+            for dist, point_loc in sorted(ls_points):
+                if current is None:
+                    point_locs.add(point_loc)
+                    current = point_loc
+                elif Point(current).distance(Point(point_loc)) < 1:
+                    update_map[point_loc] = current
+                else:
+                    point_locs.add(point_loc)
+                    current = point_loc
+
+        # Consolidate the space points and save to space polygon
+        for space in spaces:
+            poly_points = []
+            poly = space.polygon
+            for verticy in poly.vertices:
+                if verticy in update_map:
+                    if update_map[verticy] not in poly_points:
+                        poly_points.append(update_map[verticy])
+                else:
+                    poly_points.append(verticy)
+            poly.set_vertices(poly_points)
+
+        # Add a point for each point between any existing polygon points
+        def add(pt):
+            if pt not in new_points:
+                new_points.append(pt)
+        for space in spaces:
+            new_points = []
+            for i, line in enumerate(space.lines(), start=1):
+                queue = []
+                near_loc = list(line.coords)[0]
+                add(near_loc)
+                for point_loc in point_locs:
+                    point = Point(point_loc)
+                    if line.distance(point) < 0.0001:
+                        queue.append((Point(near_loc).distance(point), point_loc))
+                for _, pt in sorted(queue):
+                    add(pt)
+
+            space.polygon.set_vertices(new_points)
 
     def split_interior_walls(self, tol=1):
 
