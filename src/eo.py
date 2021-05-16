@@ -2402,6 +2402,37 @@ class U_Wall(Wall):
         else:
             self.delete()
 
+    #TODO - combine
+    def chain(self, count):
+
+        floor_uwalls = [uw for uw in self.b.kinds('UNDERGROUND-WALL').values()
+            if uw.parent.parent.name == self.parent.parent.name and uw.is_regular_wall()]
+
+        chain = [self]
+        i = 1
+
+        for uwall in floor_uwalls:
+            if uwall in chain:
+                continue
+            if uwall.get_vertices()[0] == chain[-1].get_vertices()[0]:
+                i += 1
+                chain.append(uwall)
+        if i >= count:
+            return chain
+
+        flag = True
+        while flag:
+            if i >= count:
+                break
+            current = chain[-1]
+            for uwall in floor_uwalls:
+                if uwall in chain:
+                    continue
+                if distance(uwall.get_vertices()[0], current.get_vertices()[1]) < 0.1:
+                    chain.append(uwall)
+                    i += 1
+        return chain
+
 
 class I_Wall(Wall):
 
