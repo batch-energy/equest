@@ -1354,10 +1354,8 @@ class Building(object):
     def remove_vertical_interior_walls_for_spaces_with_no_windows(self):
 
         '''
-        Remove interior walls where the plenum and associate zones for spaces with no
-        exterior walls, then delete walls, roofs and floors
-        recreate walls and recreate them. Walls must be created
-        first, but they are removed and recreated in this process.
+        Remove interior walls where the plenum and associate zones for spaces
+        with no exterior walls
         '''
 
         delete_i_walls = []
