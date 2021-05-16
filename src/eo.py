@@ -620,11 +620,14 @@ class Building(object):
                         bad_pairs[wall.name].add(pair)
 
                 # TODO: need to adjust for polygon wall defintion with window
+                frame_width = window.frame_width()
+                if isinstance(frame_width, str):
+                    frame_width = 0
                 max_off = max(
-                    [0 - (window.x() - window.frame_width()),
-                     window.x() + window.width() + window.frame_width() - wall.width(),
-                     0 - (window.y() - window.frame_width()),
-                     window.y() + window.height() + window.frame_width() - wall.height()])
+                    [0 - (window.x() - frame_width),
+                     window.x() + window.width() + frame_width - wall.width(),
+                     0 - (window.y() - frame_width),
+                     window.y() + window.height() + frame_width - wall.height()])
                 if max_off > 0:
                     off_wall[window.name] = max_off
 
