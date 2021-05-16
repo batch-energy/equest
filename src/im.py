@@ -104,9 +104,12 @@ class Pdf_File(object):
 
                 space_names_set.add(polygon.name)
                 # This controls the rules for determining the floor name
-                if os.environ['USE_FIRST_CHARACTER_AS_FLOOR_GROUING']:
+                if os.environ.get('USE_FIRST_CHARACTER_AS_FLOOR_GROPUING'):
                     # first character
                     floor_name_counter[polygon.name[0]] += 1
+                elif os.environ.get('USE_PAGE_NAME_AS_FLOOR_GROUPING'):
+                    # use page number
+                    floor_name_counter[str(name)] += 1
                 else:
                     # All charactors before the hyphen
                     floor_name_counter[polygon.name.split('-')[0]] += 1
