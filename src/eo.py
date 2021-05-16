@@ -1337,6 +1337,7 @@ class Building(object):
                         ceiling.attr['LOCATION'] = 'TOP'
                         ceiling.attr['NEXT-TO'] = other_space.name
                         ceiling.attr['POLYGON'] = ceiling_polygon_name
+                        ceiling.attr['CONSTRUCTION'] = construction
 
     def create_zones(self):
 
