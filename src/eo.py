@@ -1487,10 +1487,15 @@ class Building(object):
                 window.attr['X'] = (wall.width() - window.width()) / 2
                 window.attr['Y'] =(wall.height() - window.height()) / 2
 
+
+
     def add_daylighting(self, depth=10):
 
         for name, space in self.kinds('SPACE').items():
             windows = defaultdict(int)
+
+            if space.is_plenum():
+                continue
 
             for e_wall in space.e_walls():
                 if e_wall.tilt() != 90:
