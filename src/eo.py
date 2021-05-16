@@ -1476,6 +1476,17 @@ class Building(object):
             elif win_y + win_h + buffer > wall_h:
                 window.attr['Y'] = round(wall_h - win_h - buffer, 2)
 
+    def center_windows(self):
+        for window in self.kinds('WINDOW').values():
+            wall = window.parent
+
+            factor = window.width() * window.height() / \
+                     wall.width() * wall.height()
+            if factor > 0.5 and len(wall.windows()) == 1:
+                print('Centering %s' % window.name)
+                window.attr['X'] = (wall.width() - window.width()) / 2
+                window.attr['Y'] =(wall.height() - window.height()) / 2
+
     def add_daylighting(self, depth=10):
 
         for name, space in self.kinds('SPACE').items():
