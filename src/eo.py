@@ -2,7 +2,7 @@ from collections import OrderedDict, namedtuple, defaultdict
 import re, time, os, math
 from shapely.geometry import Polygon as ShapelyPoly
 from shapely.geometry import LineString, Point, MultiPolygon, MultiLineString
-from shapely.ops import split as shapely_split
+from shapely.ops import split as shapely_split, nearest_points
 import copy
 from string import ascii_lowercase
 import operator
@@ -292,6 +292,13 @@ class Building(object):
                     continue
                 horiz_space_pairs.append((space, space2))
         return horiz_space_pairs, vert_space_pairs
+
+    def space_map(self):
+        lookup = defaultdict(list)
+        for space1, space2 in self.space_pairs()[0]:
+            lookup[space1.name].append(space2.name)
+            lookup[space2.name].append(space1.name)
+        return lookup
 
     def make_walls(self, make_ewall_for_bad_space_pairs=True, short_iwall_names=False):
 
@@ -633,11 +640,14 @@ class Building(object):
                         bad_pairs[wall.name].add(pair)
 
                 # TODO: need to adjust for polygon wall defintion with window
+                frame_width = window.frame_width()
+                if isinstance(frame_width, str):
+                    frame_width = 0
                 max_off = max(
-                    [0 - (window.x() - window.frame_width()),
-                     window.x() + window.width() + window.frame_width() - wall.width(),
-                     0 - (window.y() - window.frame_width()),
-                     window.y() + window.height() + window.frame_width() - wall.height()])
+                    [0 - (window.x() - frame_width),
+                     window.x() + window.width() + frame_width - wall.width(),
+                     0 - (window.y() - frame_width),
+                     window.y() + window.height() + frame_width - wall.height()])
                 if max_off > 0:
                     off_wall[window.name] = max_off
 
@@ -653,7 +663,7 @@ class Building(object):
             print('  No Overlapping windows\n')
 
         if off_wall:
-            print('  Some windows are off the walls')
+            print('  Some windows are off the walls (%s)' % len(off_wall))
             for wall_name, off_by in sorted(off_wall.items()):
                 print('    %s (%s) ' % (wall_name, round(off_by, 2)))
             print('')
@@ -999,15 +1009,124 @@ class Building(object):
                         if point.distance(moved_point) < 0.1:
                             space.polygon.set_verticy( base_point.coords[0], i)
 
+    def magic_align_by_base(self, base_space_names):
+        lookup = self.space_map()
+        for base_space_name in base_space_names:
+            other_spaces = [self.objects[n] for n in lookup[base_space_name]]
+            other_spaces.sort(key=attrgetter('z_global'), reverse=True)
+            names = [other.name for other in other_spaces]
+            self.magic_align_by_name(base_space_name, *names)
+
+            for space in [self.objects[base_space_name]] + other_spaces:
+                space.polygon.delete_sequential_dupes()
+
+        print(self.objects['"1-Packaging3"'].polygon.vertices)
+
 
     def magic_align_by_name(self, *space_names):
-        print(space_names)
         self.magic_align(self.get_objects(*space_names))
 
     def magic_align(self, spaces):
         self.split_interior_walls_prescribed(spaces)
         self.adjust_spaces_to_align(spaces[0], spaces[1:])
 
+    def align_all_to_this(self, points):
+
+        '''Forces all spaces along provided points to share wall vertices'''
+
+        def loc(obj):
+            if isinstance(obj, Point):
+                return obj.coords[0]
+            elif isinstance(obj, LineString):
+                return list(obj.coords)
+
+        def segs(ls):
+            return zip(ls.coords[:-1], ls.coords[1:])
+
+        # Make linestring from points provided
+        ls = LineString(points)
+        ls_pts = [Point(p) for p in ls.coords]
+
+        # Find all spaces near that linestring
+        spaces = [s for s in self.kinds('SPACE').values()
+            if s.shapely_poly.distance(ls) < 1]
+
+        # Move all close points to provided linestring.
+        # Shared points will remain aligned since they are treated equally
+        points = set()
+        for space in spaces:
+            poly_points = []
+            poly = space.polygon
+            for verticy in poly.vertices:
+                point = Point(verticy)
+                if point.distance(ls) < 1:
+                    for pt in ls_pts:
+                        if point.distance(pt) < 1:
+                            poly_points.append(loc(pt))
+                            points.add(loc(pt))
+                            break
+                    else:
+                        new_point = list(nearest_points(ls, point)[0].coords)[0]
+                        poly_points.append(new_point)
+                        points.add(new_point)
+                else:
+                    poly_points.append(list(point.coords)[0])
+            poly.set_vertices(poly_points)
+
+        # Make a map of all of the points that need to be consolidated
+        # because they are close to one another
+        point_locs = set()
+        update_map = {}
+        for i, (near_loc, far_loc) in enumerate(segs(ls)):
+            ls_points = []
+            near_point, far_point = Point(near_loc), Point(far_loc)
+            for point_loc in points:
+                point = Point(point_loc)
+                if point.distance(near_point) > 0.001 and \
+                        point.distance(far_point) > 0.001 and \
+                        point.distance(LineString([near_loc, far_loc])) < 0.001:
+                    ls_points.append((point.distance(near_point), point_loc))
+            current = None
+            for dist, point_loc in sorted(ls_points):
+                if current is None:
+                    point_locs.add(point_loc)
+                    current = point_loc
+                elif Point(current).distance(Point(point_loc)) < 1:
+                    update_map[point_loc] = current
+                else:
+                    point_locs.add(point_loc)
+                    current = point_loc
+
+        # Consolidate the space points and save to space polygon
+        for space in spaces:
+            poly_points = []
+            poly = space.polygon
+            for verticy in poly.vertices:
+                if verticy in update_map:
+                    if update_map[verticy] not in poly_points:
+                        poly_points.append(update_map[verticy])
+                else:
+                    poly_points.append(verticy)
+            poly.set_vertices(poly_points)
+
+        # Add a point for each point between any existing polygon points
+        def add(pt):
+            if pt not in new_points:
+                new_points.append(pt)
+        for space in spaces:
+            new_points = []
+            for i, line in enumerate(space.lines(), start=1):
+                queue = []
+                near_loc = list(line.coords)[0]
+                add(near_loc)
+                for point_loc in point_locs:
+                    point = Point(point_loc)
+                    if line.distance(point) < 0.0001:
+                        queue.append((Point(near_loc).distance(point), point_loc))
+                for _, pt in sorted(queue):
+                    add(pt)
+
+            space.polygon.set_vertices(new_points)
 
     def split_interior_walls(self, tol=1):
 
@@ -1255,6 +1374,7 @@ class Building(object):
                         ceiling.attr['LOCATION'] = 'TOP'
                         ceiling.attr['NEXT-TO'] = other_space.name
                         ceiling.attr['POLYGON'] = ceiling_polygon_name
+                        ceiling.attr['CONSTRUCTION'] = construction
 
     def create_zones(self):
 
@@ -1271,10 +1391,8 @@ class Building(object):
     def remove_vertical_interior_walls_for_spaces_with_no_windows(self):
 
         '''
-        Remove interior walls where the plenum and associate zones for spaces with no
-        exterior walls, then delete walls, roofs and floors
-        recreate walls and recreate them. Walls must be created
-        first, but they are removed and recreated in this process.
+        Remove interior walls where the plenum and associate zones for spaces
+        with no exterior walls
         '''
 
         delete_i_walls = []
@@ -1395,10 +1513,26 @@ class Building(object):
             elif win_y + win_h + buffer > wall_h:
                 window.attr['Y'] = round(wall_h - win_h - buffer, 2)
 
+    def center_windows(self):
+        for window in self.kinds('WINDOW').values():
+            wall = window.parent
+
+            factor = window.width() * window.height() / \
+                     wall.width() * wall.height()
+            if factor > 0.5 and len(wall.windows()) == 1:
+                print('Centering %s' % window.name)
+                window.attr['X'] = (wall.width() - window.width()) / 2
+                window.attr['Y'] =(wall.height() - window.height()) / 2
+
+
+
     def add_daylighting(self, depth=10):
 
         for name, space in list(self.kinds('SPACE').items()):
             windows = defaultdict(int)
+
+            if space.is_plenum():
+                continue
 
             for e_wall in space.e_walls():
                 if e_wall.tilt() != 90:
@@ -1581,6 +1715,9 @@ class Object(object):
             return 0
         else:
             return None
+
+    def set(self, name, value):
+        self.attr[name] = value
 
     def filter(self, attr, min=None, max=None, l=None, like=None):
         if l and self.attr[attr] in l:
@@ -2301,6 +2438,37 @@ class U_Wall(Wall):
             ewall.attr['Z'] = split
         else:
             self.delete()
+
+    #TODO - combine
+    def chain(self, count):
+
+        floor_uwalls = [uw for uw in self.b.kinds('UNDERGROUND-WALL').values()
+            if uw.parent.parent.name == self.parent.parent.name and uw.is_regular_wall()]
+
+        chain = [self]
+        i = 1
+
+        for uwall in floor_uwalls:
+            if uwall in chain:
+                continue
+            if uwall.get_vertices()[0] == chain[-1].get_vertices()[0]:
+                i += 1
+                chain.append(uwall)
+        if i >= count:
+            return chain
+
+        flag = True
+        while flag:
+            if i >= count:
+                break
+            current = chain[-1]
+            for uwall in floor_uwalls:
+                if uwall in chain:
+                    continue
+                if distance(uwall.get_vertices()[0], current.get_vertices()[1]) < 0.1:
+                    chain.append(uwall)
+                    i += 1
+        return chain
 
 
 class I_Wall(Wall):
