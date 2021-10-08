@@ -281,6 +281,13 @@ class Building(object):
                 horiz_space_pairs.append((space, space2))
         return horiz_space_pairs, vert_space_pairs
 
+    def space_map(self):
+        lookup = defaultdict(list)
+        for space1, space2 in self.space_pairs()[0]:
+            lookup[space1.name].append(space2.name)
+            lookup[space2.name].append(space1.name)
+        return lookup
+
     def make_walls(self, make_ewall_for_bad_space_pairs=True, short_iwall_names=False):
 
         '''Make interior walls, then exterior walls where there are no interio ones'''
@@ -984,9 +991,21 @@ class Building(object):
                         if point.distance(moved_point) < 0.1:
                             space.polygon.set_verticy( base_point.coords[0], i)
 
+    def magic_align_by_base(self, base_space_names):
+        lookup = self.space_map()
+        for base_space_name in base_space_names:
+            other_spaces = [self.objects[n] for n in lookup[base_space_name]]
+            other_spaces.sort(key=attrgetter('z_global'), reverse=True)
+            names = [other.name for other in other_spaces]
+            self.magic_align_by_name(base_space_name, *names)
+
+            for space in [self.objects[base_space_name]] + other_spaces:
+                space.polygon.delete_sequential_dupes()
+
+        print(self.objects['"1-Packaging3"'].polygon.vertices)
+
 
     def magic_align_by_name(self, *space_names):
-        print(space_names)
         self.magic_align(self.get_objects(*space_names))
 
     def magic_align(self, spaces):
