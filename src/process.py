@@ -51,7 +51,7 @@ def phase_6(b):
     print('  Making Floors')
     b.create_floors()
 
-    for floor in b.get_objects('B'):
+    for floor in b.objects.get('B', []):
         for space in floor.spaces():
             for wall in space.e_walls():
                 if wall.is_vertical():
