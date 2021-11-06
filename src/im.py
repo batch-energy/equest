@@ -443,8 +443,8 @@ def from_pdf(pdf_file, seed_file, attrs=None):
     if pdf.errors:
         print('  ERRORS')
         for error in pdf.errors:
-            print ('    %s' % errors)
-        raw_input()
+            print ('    %s' % error)
+        input()
         return None
 
     return b

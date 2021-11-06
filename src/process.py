@@ -1,6 +1,6 @@
 import os
 try:
-    os.add_dll_directory(r'"C:\OSGeo4W64\bin')
+    pass #os.add_dll_directory(r'"C:\OSGeo4W64\bin')
 except AttributeError:
     pass
 
