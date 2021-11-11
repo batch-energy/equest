@@ -1018,12 +1018,8 @@ class Building(object):
             other_spaces.sort(key=operator.attrgetter('z_global'), reverse=True)
             names = [other.name for other in other_spaces]
             self.magic_align_by_name(base_space_name, *names)
-
             for space in [self.objects[base_space_name]] + other_spaces:
                 space.polygon.delete_sequential_dupes()
-
-        print(self.objects['"1-Packaging3"'].polygon.vertices)
-
 
     def magic_align_by_name(self, *space_names):
         self.magic_align(self.get_objects(*space_names))
