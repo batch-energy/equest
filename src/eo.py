@@ -1015,7 +1015,7 @@ class Building(object):
         lookup = self.space_map()
         for base_space_name in base_space_names:
             other_spaces = [self.objects[n] for n in lookup[base_space_name]]
-            other_spaces.sort(key=attrgetter('z_global'), reverse=True)
+            other_spaces.sort(key=operator.attrgetter('z_global'), reverse=True)
             names = [other.name for other in other_spaces]
             self.magic_align_by_name(base_space_name, *names)
 
