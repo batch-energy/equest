@@ -1010,6 +1010,8 @@ class Building(object):
                             space.polygon.set_verticy( base_point.coords[0], i)
 
     def magic_align_by_base(self, base_space_names):
+        if isinstance(base_space_names, str):
+            base_space_names = [base_space_names]
         lookup = self.space_map()
         for base_space_name in base_space_names:
             other_spaces = [self.objects[n] for n in lookup[base_space_name]]
