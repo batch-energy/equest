@@ -977,7 +977,7 @@ class Building(object):
                         space.polygon.add_verticy(pt, point_loc)
                         prev_point = point
 
-            print(('Added total', added_total))
+            print('  Added', added_total)
 
     def adjust_spaces_to_align(self, basespace, move_spaces):
 
