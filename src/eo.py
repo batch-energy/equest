@@ -355,10 +355,10 @@ class Building(object):
                     name = name + '_%s"' % i
                 else:
                     name = name + '_%s"' % (other_space_name[1:-1].split('-')[1])
-                space_min = space.z_global()
+                space_min = space.z_global
                 space_max = space_min + space.height()
                 i = I_Wall(self, name=name, parent=space)
-                z = lower - space.z_global()
+                z = lower - space.z_global
                 if not is_close(lower, space_min, 0.1):
                     i.attr['Z'] = z
                 if not is_close(upper-lower, space_max-space_min, 0.1):
@@ -372,7 +372,7 @@ class Building(object):
 
         # Create exterior walls
         for space in list(self.kinds('SPACE').values()):
-            space_min = space.z_global()
+            space_min = space.z_global
             space_max = space_min + space.height()
             for i in range(1, len(space.vertices()) + 1):
                 adjacents = interior_walls.get((space.name, i), [])
@@ -388,7 +388,7 @@ class Building(object):
                     suffix = '' if (len(spans) == 1) else ('_%s' % j)
                     name = space.name[:-1] + '-E%s%s"' % (i, suffix)
                     e = E_Wall(self, name=name, parent=space)
-                    z = lower - space.z_global()
+                    z = lower - space.z_global
                     if not is_close(lower, space_min, 0.1):
                         e.attr['Z'] = z
                     if not is_close(upper-lower, space_max-space_min, 0.1):
@@ -421,7 +421,7 @@ class Building(object):
         candidates = []
         for ugf in underground_floors:
             for ewall, ewall_midpoint in list(ewall_midpoints.items()):
-                if ewall.z_global() < ugf.z_global():
+                if ewall.z_global < ugf.z_global:
                     if ewall_midpoint.distance(ugf.parent.polygon.shapely_poly) < 1:
                         candidates.append(ewall)
 
@@ -517,7 +517,7 @@ class Building(object):
                         origin_shift = -origin_shift
 
                     wall_x1 = origin_shift
-                    wall_y1 = wall.z_global() - reference_wall.z_global()
+                    wall_y1 = wall.z_global - reference_wall.z_global
                     wall_width = wall.width()
                     wall_height = wall.height()
                     wall_x2 = wall_x1 + wall_width
@@ -1191,7 +1191,7 @@ class Building(object):
         for space in list(self.kinds('SPACE').values()):
             running_roof_polygon = copy.copy(space.shapely_poly)
             for other_space in list(self.kinds('SPACE').values()):
-                if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
+                if abs(space.z_global + space.height() - other_space.z_global) < tol:
                     try:
                         running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
                     except TopologicalError as e:
@@ -1233,7 +1233,7 @@ class Building(object):
                     roof_polygon_name_list.append(name)
 
             for i, polygon_name in enumerate(roof_polygon_name_list, 1):
-                if (space.z_global() + space.height()) >= 0:
+                if (space.z_global + space.height()) >= 0:
                     Wall = E_Wall
                     construction = get_client_construction()['roof']
                 else:
@@ -1258,7 +1258,7 @@ class Building(object):
         for space in spaces or list(self.kinds('SPACE').values()):
             running_floor_polygon = copy.copy(space.shapely_poly)
             for other_space in list(self.kinds('SPACE').values()):
-                if abs(space.z_global() - (other_space.z_global() + other_space.height())) < tol:
+                if abs(space.z_global - (other_space.z_global + other_space.height())) < tol:
                     try:
                         running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
                     except TopologicalError as e:
@@ -1302,7 +1302,7 @@ class Building(object):
                     floor_polygon_name_list.append(name)
 
             for i, polygon_name in enumerate(floor_polygon_name_list, 1):
-                if (space.z_global()) <= z + 1:
+                if (space.z_global) <= z + 1:
                     Wall = U_Wall
                     construction = get_client_construction()['underground_slab']
                 else:
@@ -1327,7 +1327,7 @@ class Building(object):
         for space in list(self.kinds('SPACE').values()):
             ceiling_polygons = copy.copy(space.shapely_poly)
             for i, other_space in enumerate(self.kinds('SPACE').values()):
-                if abs(space.z_global() + space.height() - other_space.z_global()) < tol:
+                if abs(space.z_global + space.height() - other_space.z_global) < tol:
                     try:
                         ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
                     except TopologicalError as e:
@@ -1884,6 +1884,7 @@ class Floor(Object):
     def y_global(self):
         return self.x()
 
+    @property
     def z_global(self):
         return self.z()
 
@@ -1943,7 +1944,7 @@ class Space(Object):
 
     @classmethod
     def vertically_ordered(cls, space1, space2):
-        if space1.z_global() <= space2.z_global():
+        if space1.z_global <= space2.z_global:
             return space1, space2
         else:
             return space2, space1
@@ -1968,6 +1969,7 @@ class Space(Object):
     def y_global(self):
         return self.parent.y() + self.y()
 
+    @property
     def z_global(self):
         return self.parent.z() + self.z()
 
@@ -2033,16 +2035,16 @@ class Space(Object):
         return k
 
     def extents(self):
-        return self.z_global(), self.z_global() + self.height()
+        return self.z_global, self.z_global + self.height()
 
     def vertical_overlap(self, other):
         z_min, z_max = self.overlap_heights(other)
         return z_max - z_min
 
     def overlap_heights(self, other):
-        l1 = self.z_global()
+        l1 = self.z_global
         u1 = l1 + self.height()
-        l2 = other.z_global()
+        l2 = other.z_global
         u2 = l2 + other.height()
         z_max = min(u1, u2)
         z_min = max(l1, l2)
@@ -2092,7 +2094,7 @@ class Space(Object):
                 deletes.append(wall.name)
                 continue
 
-            z = wall.z_global() - self.z_global()
+            z = wall.z_global - self.z_global
             if wall.is_vertical():
                 x = wall.x()
                 y = wall.y()
@@ -2170,8 +2172,9 @@ class Wall(Object):
     def y_global(self):
         return self.parent.y_global() + self.y()
 
+    @property
     def z_global(self):
-        return self.parent.z_global() + self.z()
+        return self.parent.z_global + self.z()
 
     def tilt(self):
         if self.get('TILT'):
@@ -2522,9 +2525,10 @@ class Wall_Object(Object):
     def y_global(self):
         pass #TODO - make this as needed
 
+    @property
     def z_global(self):
 
-        wall_z = self.parent.z_global()
+        wall_z = self.parent.z_global
         object_z = self.y() * math.sin(math.radians(self.parent.tilt))
         return wall_z + object_z
 
@@ -2806,7 +2810,7 @@ def sloped_roof(roof, base_point, other_point):
 
     roof.attr['X'] = x1
     roof.attr['Y'] = y1
-    roof.attr['Z'] = float(z1) - roof.parent.z_global()
+    roof.attr['Z'] = float(z1) - roof.parent.z_global
     roof.attr['AZIMUTH'] = az
     roof.attr['TILT'] = t
     roof.attr['POLYGON'] = new_polygon.name
