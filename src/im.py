@@ -67,14 +67,15 @@ class Pdf_File(object):
                     if pdf_page.origin is None:
                         pdf_page.origin = Pdf_Origin(annotation)
                     else:
-                        self.errors('Page %s has multiple origins' % page_number)
+                        self.errors.append('Page %s has multiple origins' % page_number)
                 elif annotation.get('/T', '').lower().startswith('scale'):
                     if pdf_page.scale is None:
                         pdf_page.scale = Pdf_Scale(annotation)
                     else:
-                        self.errors('Page %s has multiple scales' % page_number)
+                        self.errors.append('Page %s has multiple scales' % page_number)
                 elif annotation.get('/Subtype') == '/Polygon':
                     pdf_page.polygons.append(Pdf_Polygon(annotation))
+
 
     def __verify_specials(self):
 
