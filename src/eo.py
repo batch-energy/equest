@@ -2128,7 +2128,7 @@ class Space(Object):
                 y = wall.y()
                 height = wall.height()
                 width = wall.width()
-                angle =  wall.angle()
+                angle = wall.angle()
             else:
                 polygon_name = wall.polygon().name
 
