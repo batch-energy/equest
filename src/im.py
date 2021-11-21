@@ -60,7 +60,7 @@ class Pdf_File(object):
                     pdf_page = Pdf_Page()
                     self.pages[page_number] = pdf_page
                 else:
-                    # Use exsting if page numebr exists
+                    # Use exsting if page number exists
                     pdf_page = self.pages[page_number]
 
                 if annotation.get('/T', '').lower().startswith('origin'):
