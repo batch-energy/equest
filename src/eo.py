@@ -7,6 +7,7 @@ import copy
 from string import ascii_lowercase
 import operator
 from shapely.errors import TopologicalError
+from shapely import affinity
 
 from utils import wrap, unwrap
 from client import get_client_construction, get_client_glass
@@ -1787,6 +1788,9 @@ class Polygon(Object):
     def rotate(self, degrees):
         self.set_vertices(
             [e_math.rotate(p[0], p[1], degrees) for p in self.vertices])
+
+    def rotate_in_place(self, degrees):
+        self.set_vertices(affinity.rotate(self.shapely_poly, degrees))
 
     def flip_horizontal(self):
         self.set_vertices([(-p[0], p[1]) for p in self.vertices])
