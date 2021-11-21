@@ -1792,6 +1792,7 @@ class Polygon(Object):
     def rotate(self, degrees):
         self.set_vertices(
             [e_math.rotate(p[0], p[1], degrees) for p in self.vertices])
+        self.regenerate()
 
     def rotate_in_place(self, degrees):
         self.set_vertices(affinity.rotate(self.shapely_poly, degrees))
