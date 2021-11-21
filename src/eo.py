@@ -1776,7 +1776,7 @@ class Polygon(Object):
 
     def set_vertices(self, vertices):
         if isinstance(vertices, ShapelyPoly):
-            self.vertices = list(shapely_polygon.exterior.coords)[:-1]
+            self.vertices = list(vertices.exterior.coords)[:-1]
         else:
             self.vertices = vertices
         self.regenerate()
