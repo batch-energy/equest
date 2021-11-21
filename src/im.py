@@ -171,6 +171,8 @@ class Pdf_File(object):
                 name = '"%s_poly"' % (fdf_polygon.name)
                 vertices = self.__set_vertices(page, fdf_polygon)
                 polygon = eo.Polygon(b, name=name, vertices=vertices)
+                polygon.rotate_in_place(-fdf_polygon.rotation)
+
                 if not polygon.is_ccw():
                     polygon.reverse()
                 spaces = \
@@ -380,6 +382,11 @@ class Pdf_Polygon(object):
             self.activity, s_attrs = process_name(annotation.get('/Subj'))
         else:
             self.activity == None
+
+        if annotation.get('/Rotation'):
+            self.rotation = int(annotation.get('/Rotation'))
+        else:
+            self.rotation = 0
 
         self.name, a_attrs = process_name(annotation.get('/T'))
 
