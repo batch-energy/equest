@@ -1133,6 +1133,7 @@ class Building(object):
 
         for floor in list(self.kinds('FLOOR').values()):
 
+            prev = set()
             added = True
             while added:
                 added = 0
@@ -1170,8 +1171,11 @@ class Building(object):
 
                 # add new points along lines
                 for (poly, i), point in list(lookup_add.items()):
-                    poly.add_verticy(point, i)
-                    added += 1
+                    key = (poly.name, point)
+                    if key not in prev:
+                        prev.add(key)
+                        poly.add_verticy(point, i)
+                        added += 1
 
                 print(('    ...added %s' % added))
 
