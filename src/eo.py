@@ -1131,9 +1131,8 @@ class Building(object):
 
         '''Splits space where it intersects with adjacent space'''
 
-        for floor in list(self.kinds('FLOOR').values()):
+        for floor in self.kinds('FLOOR').values():
 
-            prev = set()
             added = True
             while added:
                 added = 0
@@ -1150,15 +1149,19 @@ class Building(object):
 
                 lookup_move = {}
                 lookup_add = {}
+                poly_changed = set()
 
                 # finds at most one point near line
-                for (line_poly, i), line in list(lines.items()):
-                    for (point_poly, j), point in list(points.items()):
+                for (line_poly, i), line in lines.items():
+                    if line_poly in poly_changed:
+                        continue
+                    for (point_poly, j), point in points.items():
                         if (point_poly, j) in lookup_move or line_poly is point_poly:
                             continue
                         if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
                             continue
                         if point.distance(line) < tol:
+                            poly_changed.add(line_poly)
                             p = line.interpolate(line.project(point))
                             lookup_move[(point_poly, j)] = (p.x, p.y)
                             lookup_add[(line_poly, i)] = (p.x, p.y)
@@ -1170,12 +1173,9 @@ class Building(object):
                         for i, point in enumerate(polygon.vertices)])
 
                 # add new points along lines
-                for (poly, i), point in list(lookup_add.items()):
-                    key = (poly.name, point)
-                    if key not in prev:
-                        prev.add(key)
-                        poly.add_verticy(point, i)
-                        added += 1
+                for (poly, i), point in lookup_add.items():
+                    poly.add_verticy(point, i)
+                    added += 1
 
                 print(('    ...added %s' % added))
 
