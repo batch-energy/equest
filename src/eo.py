@@ -1837,15 +1837,32 @@ class Polygon(Object):
 
     def delete_sequential_dupes(self, tol=0.1):
 
-        new = []
+        # Remove sequential dupes
+        temp = []
         for pair in self.sequential_vertices_list():
             if e_math.distance(*pair) > tol:
-                new.append(pair[0])
+                temp.append(pair[0])
 
-        if len(new) < 3:
+        # Remove branched dupes
+        skips = []
+        if len(temp) > 4:
+            for i in range(len(temp)):
+                pair = self.vertices[i], self.vertices[(i+2)%(len(self.vertices))]
+                if e_math.distance(*pair) < tol:
+                    skips.append(i+1)
+                    skips.append(i+2)
+
+            final = []
+            for i in range(len(temp)):
+                if i not in skips:
+                    final.append(temp[i])
+        else:
+            final = temp
+
+        if len(final) < 3:
             raise RegenerateError('Cannot Regenerate Polygon')
 
-        self.set_vertices(new)
+        self.set_vertices(final)
 
     def get_vertices(self, v):
         vertices = self.vertices + [self.vertices[0]]
@@ -1853,6 +1870,10 @@ class Polygon(Object):
 
     def sequential_vertices_list(self):
         return [(self.vertices[i], self.vertices[(i+1)%(len(self.vertices))])
+            for i in range(len(self.vertices))]
+
+    def gapped_vertices_list(self):
+        return [(self.vertices[i], self.vertices[(i+2)%(len(self.vertices) + 1)])
             for i in range(len(self.vertices))]
 
     def is_ccw(self):
