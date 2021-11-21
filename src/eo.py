@@ -1141,27 +1141,23 @@ class Building(object):
 
                 points = {
                     (polygon, i):point for polygon in polygons
-                        for i, point in enumerate(polygon.points)}
+                        for i, point in reversed(list(enumerate(polygon.points)))}
 
                 lines = {
                     (polygon, i):line for polygon in polygons
-                        for i, line in enumerate(polygon.lines)}
+                        for i, line in reversed(list(enumerate(polygon.lines)))}
 
                 lookup_move = {}
                 lookup_add = {}
-                poly_changed = set()
 
                 # finds at most one point near line
                 for (line_poly, i), line in lines.items():
-                    if line_poly in poly_changed:
-                        continue
                     for (point_poly, j), point in points.items():
                         if (point_poly, j) in lookup_move or line_poly is point_poly:
                             continue
                         if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
                             continue
                         if point.distance(line) < tol:
-                            poly_changed.add(line_poly)
                             p = line.interpolate(line.project(point))
                             lookup_move[(point_poly, j)] = (p.x, p.y)
                             lookup_add[(line_poly, i)] = (p.x, p.y)
