@@ -1472,7 +1472,7 @@ class Building(object):
         self.create_floors()
         self.create_ceilings()
 
-    def nudge_windows(self, buffer=0.5, trim=False, leave_if_unfit=True):
+    def nudge_windows(self, buffer=0, trim=False, leave_if_unfit=True):
 
         for window in list(self.kinds('WINDOW').values()):
             try:
