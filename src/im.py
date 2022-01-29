@@ -396,7 +396,7 @@ class Pdf_Polygon(object):
 
 def process_name(s):
 
-    if ' ' in s.split('[')[0]:
+    if ' ' in s.split('[')[0].strip():
         raise Exception('Space in name "%s"' % s)
 
     normalized = re.sub(r'[\[\]\;\(\)\,]', ' ', s)
