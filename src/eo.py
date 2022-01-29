@@ -435,7 +435,7 @@ class Building(object):
 
         id_ = 0
 
-        Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'scale', 'frame', 'split', 'material', 'plenum'])
+        Window_Kind = namedtuple('Window_Kind', ['kind', 'title', 'height', 'width', 'y', 'scale', 'frame', 'split', 'material', 'plenum'])
 
         svg = svg_file.Svg_Page(svg_path)
 
@@ -443,6 +443,7 @@ class Building(object):
         # - each color for windows should have single one, of the same color with a
         #   title and attributes defeined in the xml directly
         # - attributes are:
+        #   _y : y
         #   _h : height
         #   _w : width
         #   _r : reduce to
@@ -473,6 +474,7 @@ class Building(object):
                     window.title,
                     e_math.convert_feet(window.get('_h')) if window.get('_h') else None,
                     e_math.convert_feet(window.get('_w')) if window.get('_w') else None,
+                    e_math.convert_feet(window.get('_y')) if window.get('_y') else None,
                     float(window.get('_r')) if window.get('_r') else 1,
                     window.get('_f') and window.get('_f').startswith('y'),
                     window.get('_s') and window.get('_s').startswith('y'),
@@ -568,7 +570,7 @@ class Building(object):
                         w, h = e_math.scale_rectangle(w, h, float(window_data.scale))
                         frame_width = (orig_w-w)/2.
                         x1 = x1 + frame_width
-                        y1 = y1 + frame_width
+                        y1 = window_data.y or y1 + frame_width
 
                         id_ += 1
 
