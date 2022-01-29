@@ -2508,7 +2508,7 @@ class U_Wall(Wall):
 
 class I_Wall(Wall):
 
-    def __init__ (self, b, name=None, kind='INTERIOR-WALL', parent=None):
+    def __init__(self, b, name=None, kind='INTERIOR-WALL', parent=None):
 
         Wall.__init__(self, b, name, kind, parent)
 
