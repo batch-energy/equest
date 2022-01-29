@@ -1528,11 +1528,14 @@ class Building(object):
                 window.attr['X'] = (wall.width() - window.width()) / 2
                 window.attr['Y'] =(wall.height() - window.height()) / 2
 
+    def add_daylighting(self, depth=10, spaces=None):
 
+        print(spaces)
 
-    def add_daylighting(self, depth=10):
+        if spaces is None:
+            spaces = self.kinds('SPACE').values()
 
-        for name, space in list(self.kinds('SPACE').items()):
+        for space in spaces:
             windows = defaultdict(int)
 
             if space.is_plenum():
