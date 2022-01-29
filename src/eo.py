@@ -646,13 +646,16 @@ class Building(object):
                 frame_width = window.frame_width()
                 if isinstance(frame_width, str):
                     frame_width = 0
-                max_off = max(
-                    [0 - (window.x() - frame_width),
-                     window.x() + window.width() + frame_width - wall.width(),
-                     0 - (window.y() - frame_width),
-                     window.y() + window.height() + frame_width - wall.height()])
+
+                off_by = {
+                    0 - (window.x() - frame_width) :'left',
+                    window.x() + window.width() + frame_width - wall.width() : 'right',
+                    0 - (window.y() - frame_width) : 'bottom',
+                    window.y() + window.height() + frame_width - wall.height() : 'top'
+                }
+                max_off = max(off_by.keys())
                 if max_off > 0:
-                    off_wall[window.name] = max_off
+                    off_wall[window.name] = (max_off, off_by[max_off])
 
         if any([prs for prs in bad_pairs.values()]):
             print('  Some windows overlap')
@@ -667,8 +670,8 @@ class Building(object):
 
         if off_wall:
             print('  Some windows are off the walls (%s)' % len(off_wall))
-            for wall_name, off_by in sorted(off_wall.items()):
-                print('    %s (%s) ' % (wall_name, round(off_by, 2)))
+            for wall_name, (off_by, direction) in sorted(off_wall.items()):
+                print(f'    {wall_name} ({round(off_by, 2)} - {direction})')
             print('')
         else:
             print('  No windows are off walls\n')
