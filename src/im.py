@@ -89,7 +89,7 @@ class Pdf_File(object):
         for name, page in list(self.pages.items()):
 
             # check spaces
-            floor_name_counter = Counter()
+            floors = defaultdict(list)
             space_names_set = set()
             for polygon in page.polygons:
 
@@ -110,37 +110,52 @@ class Pdf_File(object):
                 # This controls the rules for determining the floor name
                 if os.environ.get('USE_FIRST_CHARACTER_AS_FLOOR_GROPUING'):
                     # first character
-                    floor_name_counter[polygon.name[0]] += 1
+                    floor_name = polygon.name[0]
                 elif os.environ.get('USE_PAGE_NAME_AS_FLOOR_GROUPING'):
                     # use page number
-                    floor_name_counter[str(name)] += 1
+                    floor_name = str(name)
                 else:
                     # All charactors before the hyphen
-                    floor_name_counter[polygon.name.split('-')[0]] += 1
+                    floor_name = polygon.name.split('-')[0]
+
+                floors[floor_name].append(polygon.name)
 
                 for key in list(polygon.attrs.keys()):
                     if not key in valid_poly_attrs:
                         self.errors.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
-            common = floor_name_counter.most_common(1)
-            if not common:
+            if not floors:
                 #self.errors.append('Warning, no spaces on page %s' % name)
                 continue
 
-            floor_name = common[0][0]
-            if len(floor_name_counter) > 1:
-                self.errors.append('Floor %s has spaces assigned to multiple floors' % (floor_name))
+            max_polys = 0
+            max_floor = None
+            for name, polys in floors.items():
+                if len(polys) > max_polys:
+                    max_polys =len(polys)
+                    max_floor = name
+
+            floor_name = max_floor
+
+            for name, poly in floors.items():
+                if name != max_floor:
+                    self.errors.append('Polygon(s) %s is in floor %s' % (', '.join(poly), name))
+
+            # assign floor name from dominent space
+            page.name = floor_name
+
+            if page.origin is None:
+                self.errors.append('Page %s has no origin' % (page.name))
+                continue
 
             for key in page.origin.attrs:
                 if not key in valid_poly_attrs:
                     self.errors.append('Invalid attribute "%s" in %s' % (key, polygon.name))
 
-            # assign floor name from dominent space
-            page.name = floor_name
-
-            # override attrs for floor if provided from caller, else use those in pdf
             if floor_name in self.__provided_attrs:
                 page.origin.attrs = self.__provided_attrs[floor_name]
+            elif self.__provided_attrs:
+                self.errors.append('Floor %s was not provided attributes' % (floor_name))
 
             if page.scale is None:
                 self.errors.append('Page %s has no scale' % (page.name))
