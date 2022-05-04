@@ -1,3 +1,4 @@
+from collections import defaultdict
 import xml.etree.ElementTree as ET
 from e_math import convert_feet
 import shlex
@@ -5,15 +6,18 @@ import shlex
 
 class Svg_Page():
 
+    NS = '{http://www.inkscape.org/namespaces/inkscape}'
+
     def __init__(self, fn):
 
         self.scale_rect = None
         self.origins = []
         self.windows = []
         self.projections = []
+        self.errors = []
 
         self.rects = []
-        self.xml_rects = []
+        self.xml_rects = defaultdict(list)
 
         self.xmlns = '{http://www.w3.org/2000/svg}'
         self.__read_xml(fn)
@@ -34,23 +38,39 @@ class Svg_Page():
     def __read_xml(self, fn):
         root = ET.parse(fn).getroot()
         for layer in root.findall(self.xmlns + 'g'):
-            self.xml_rects += layer.findall(self.xmlns + 'rect')
+            layer_name = layer.attrib[f'{self.NS}label']
+            self.xml_rects[layer_name] += layer.findall(self.xmlns + 'rect')
 
     def __make_rects(self):
 
-        for xml_rect in self.xml_rects:
+        for xml_rect in self.xml_rects['Scale']:
             svg_rect = Svg_Rectangle(self, xml_rect)
 
             if 'scale' in str(svg_rect.title):
                 if self.scale_rect:
-                    print("Error: Multiple scales")
+                    self.errors.append('Multiple scales')
                 else:
                     self.scale_rect = Svg_Scale(svg_rect)
                     self.scale = self.scale_rect.scale
-            elif 'origin' in str(svg_rect.title):
+            else:
+                id_ = svg_rect.xml_rect.attrib['id']
+                self.errors.append(f'Unknown object in `scale` layer {id_}')
+
+        for xml_rect in self.xml_rects['Floor_defs']:
+
+            svg_rect = Svg_Rectangle(self, xml_rect)
+
+            if 'origin' in str(svg_rect.title):
                 self.origins.append(Svg_Origin(svg_rect))
             else:
-                self.windows.append(Svg_Window(svg_rect))
+                id_ = svg_rect.xml_rect.attrib['id']
+                self.errors.append(f'Unknown object in `Floor_defs` layer {id_}')
+
+        for xml_rect in self.xml_rects['Windows']:
+
+            svg_rect = Svg_Rectangle(self, xml_rect)
+
+            self.windows.append(Svg_Window(svg_rect))
 
     def __assign_origins(self):
         return
