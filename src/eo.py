@@ -1955,6 +1955,42 @@ class Floor(Object):
         return [space for space in list(self.b.kinds('SPACE').values())
             if space.parent==self]
 
+    def roofs_to_adiabatic(self, skip_spaces=None):
+
+        roof_spaces = []
+        for space in self.spaces():
+            if skip_spaces and space.name in skip_spaces:
+                continue
+            for wall in list(space.roofs()):
+                roof_spaces.append(wall.parent)
+                wall.delete()
+
+        for space in roof_spaces:
+            iwall = I_Wall(self.b, utils.rewrap(space.name, '-Roof'), parent=space)
+            iwall.attr['INT-WALL-TYPE'] = 'ADIABATIC'
+            iwall.attr['LOCATION'] = 'TOP'
+
+    def floors_to_adiabatic(self, skip_spaces=None):
+
+        floor_spaces = []
+        for space in self.spaces():
+            if skip_spaces and space.name in skip_spaces:
+                continue
+            for wall in list(space.floors()):
+                floor_spaces.append(wall.parent)
+                wall.delete()
+
+        for space in floor_spaces:
+            iwall = I_Wall(self.b, utils.rewrap(space.name, '-Floor'), parent=space)
+            iwall.attr['INT-WALL-TYPE'] = 'ADIABATIC'
+            iwall.attr['LOCATION'] = 'BOTTOM'
+
+    def walls_to_underground(self, split=None):
+
+        for wall in self.b.kinds('EXTERIOR-WALL').values():
+            if wall.parent.parent == self and wall.tilt() == 90:
+                wall.to_uwall(split)
+
     def duplicate(self, name, z):
 
         '''Duplicates Floor and all child elements, with new z and name'''
