@@ -346,6 +346,9 @@ class Pdf_Page(object):
         self.scale = None
         self.name = None
 
+    def __repr__(self):
+        return f'PDF PAGE {self.name}'
+
 class Pdf_Origin(object):
 
     def __init__(self, annotation):
