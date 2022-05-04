@@ -517,6 +517,9 @@ class Building(object):
                         projection.origin.svg_rect.id))
                     raise
 
+                if not isinstance(reference_wall, E_Wall):
+                    raise Exception(f'{reference_wall_name} is a {type(reference_wall)} instead of an E_Wall')
+
                 reference_wall_names[reference_wall_name].append(
                     projection.origin.svg_rect.id)
 
