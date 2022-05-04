@@ -2662,7 +2662,7 @@ class Window(Wall_Object):
 
         Wall_Object.__init__(self, b, name, kind, parent)
 
-    def reduce(self, factor):
+    def reduce(self, factor, add_frame=False):
 
         # scale window to percent vision
         x, y, w, h = e_math.scale_move_rectangle(
@@ -2671,6 +2671,9 @@ class Window(Wall_Object):
             self.attr['WIDTH'],
             self.attr['HEIGHT'],
             factor)
+
+        if add_frame:
+            self.attr['FRAME-WIDTH'] = x - self.attr['X']
 
         for attr, value in [('X', x), ('Y', y), ('WIDTH', w), ('HEIGHT', h)]:
             self.attr[attr] = value
