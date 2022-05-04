@@ -2117,6 +2117,12 @@ class Space(Object):
     def u_walls(self):
         return [wall for wall in self.children if wall.kind == 'UNDERGROUND-WALL']
 
+    def roofs(self):
+        return [wall for wall in self.e_walls() if wall.tilt() == 0]
+
+    def floors(self):
+        return [wall for wall in self.e_walls() if wall.tilt() == 180]
+
     def find_next_wall_name(self, kind="E"):
         space_name = self.name[1:-1]
         c = 1
@@ -2410,6 +2416,14 @@ class E_Wall(Wall):
         for attr, value in [('X', x), ('Y', y), ('HEIGHT', height), ('WIDTH', width)]:
             window.attr[attr] = value
         return window
+
+    def create_door(self, name, x=0, y=0, height=None, width=None):
+        height = height or self.height()
+        width = width or self.width()
+        door = Door(self.b, name, parent=self)
+        for attr, value in [('X', x), ('Y', y), ('HEIGHT', height), ('WIDTH', width)]:
+            door.attr[attr] = value
+        return door
 
     def windows(self):
         return [window for window in self.b.objects['WINDOW']
