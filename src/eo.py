@@ -2032,6 +2032,9 @@ class Space(Object):
 
         Object.__init__(self, b, name, kind, parent)
 
+    def __repr__(self):
+        return f'<Space {self.name}>'
+
     @classmethod
     def vertically_ordered(cls, space1, space2):
         if space1.z_global <= space2.z_global:
