@@ -324,7 +324,7 @@ class Building(object):
                         continue
                     elif points_1[1].distance(points_2[1]) < 0.1:
                         continue
-                    elif abs(180 - angle(ls1.coords, ls2.coords)) > 5:
+                    elif abs(180 - angle(ls1.coords, ls2.coords)) > 4:
                         continue
                     elif points_1[0].distance(points_2[1]) < 0.1 and points_1[1].distance(points_2[0]) < 0.1:
                         interior_walls[(space_1.name, i)].append((space_2.name, (z_min, z_max)))
