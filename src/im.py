@@ -460,9 +460,9 @@ def from_pdf(pdf_file, seed_file, attrs=None):
 
     pdf = Pdf_File(pdf_file, attrs)
 
-    pdf_building = pdf.create()
-
-    b.extend(pdf_building)
+    if not pdf.errors:
+        pdf_building = pdf.create()
+        b.extend(pdf_building)
 
     if pdf.warnings:
         print('  WARNINGS')
