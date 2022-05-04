@@ -624,6 +624,12 @@ class Building(object):
                 print('  Error for %s' % reference_wall_name)
                 print('    has multiple rectangles: %s' % ', '.join(svg_rects))
 
+        if svg.errors:
+            print('\n  Error on svg parsing')
+            for error in svg.errors:
+                print(f'    {error}')
+            print('')
+
         if True:
             # Print wond attrs when creating windows
             for color_id in sorted(used_window_colors):
