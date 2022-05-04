@@ -1558,7 +1558,7 @@ class Building(object):
             spaces = self.kinds('SPACE').values()
 
         for space in spaces:
-            windows = defaultdict(int)
+            windows = {}
 
             if space.is_plenum():
                 continue
@@ -1567,13 +1567,13 @@ class Building(object):
                 if e_wall.tilt() != 90:
                     continue
                 for window in e_wall.windows():
-                    windows[e_wall] += window.area()
+                    windows[window.area()] = e_wall
 
             if not windows:
                 continue
 
-            _, wall = sorted([(v, k) for k, v in list(windows.items())])[-1]
-            p1, p2 = wall.get_vertices()
+            largest = windows[max(windows.keys())]
+            p1, p2 = largest.get_vertices()
             mx, my = e_math.midpoint(p1, p2)
             angle = e_math.get_angle(p1, p2, True)
             offset_radians = math.radians((e_math.get_angle(p1, p2, True) + 90) % 360)
