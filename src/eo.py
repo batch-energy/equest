@@ -429,6 +429,19 @@ class Building(object):
         for ewall in set(candidates):
             ewall.to_uwall()
 
+    def collapse_floors(self):
+        z = 0
+        self.__floor_orig_z = {}
+        for floor in self.sorted_floors():
+            self.__floor_orig_z[floor.name] = floor.z()
+            floor.attr['Z'] = z
+            z += float(floor.height())
+
+
+    def expand_floors(self):
+        for floor in self.kinds('FLOOR').values():
+            floor.attr['Z'] = self.__floor_orig_z[floor.name]
+
     def make_windows(self, svg_path, tol_d=5, tol_a=5):
 
         '''Make windows from svg projections'''
