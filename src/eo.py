@@ -9,7 +9,7 @@ import operator
 from shapely.errors import TopologicalError
 from shapely import affinity
 
-from utils import wrap, unwrap
+from utils import wrap, unwrap, rewrap
 from client import get_client_construction, get_client_glass
 import svg_file
 import e_math
@@ -1582,6 +1582,33 @@ class Building(object):
             space.attr['DAYLIGHTING'] = 'YES'
             space.attr['LIGHT-REF-POINT1'] = ( x, y)
             space.attr['VIEW-AZIMUTH'] = e_math.swap_angle(angle)
+
+    def spaced_windows(self, start_wall, end_wall, count, y, h, w, glass_type, suffix=''):
+        walls = self.objects[start_wall].chain_until(end_wall)
+        spacer = (sum(wall.width() for wall in walls) - (count * w)) / count
+        span = spacer + w
+        window_spans = [(spacer / 2, spacer / 2 + w)]
+
+        for i in range(count-1):
+            window_spans.append((window_spans[-1][0] + span,
+                                 window_spans[-1][1] + span))
+
+        running = 0
+        for wall in walls:
+            count = 1
+            wall_span = (running, running + wall.width())
+            for window_span in window_spans:
+                if window_span[0] > wall_span[1]:
+                    continue
+                if window_span[1] < wall_span[0]:
+                    continue
+                start = max(window_span[0], wall_span[0]) - running
+                end = min(window_span[1], wall_span[1]) - running
+                name = rewrap(wall.name, f'-W{count}{suffix}')
+                wall.create_window(name=name, x=start, y=y, width=end-start,
+                                   height=h, glass_type=glass_type)
+                count += 1
+            running += wall.width()
 
 
 class Default(object):
