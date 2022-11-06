@@ -1750,6 +1750,11 @@ class Object(object):
                 n, v = line, None
             self.attr[n] = v
 
+    def merge(self, other):
+        for child in other.children:
+            self.adopt(child)
+        other.delete()
+
     def adopt(self, child):
         '''move from one parent to another'''
         child.parent.children.remove(child)
