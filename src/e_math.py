@@ -35,6 +35,9 @@ def get_angle_name(a):
     index = int(round(float(a)/8,0))
     return(directions[index])
 
+def get_cardnal_direction(a):
+    return round(a/90, 0) % 4
+
 def angle(pair_1, pair_2):
 
     theta_1 = math.atan2(pair_1[1][1]-pair_1[0][1], pair_1[1][0]-pair_1[0][0])
