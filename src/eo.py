@@ -35,8 +35,11 @@ class TolerantOrderedDict(OrderedDict):
     def __getitem__(self, value):
         try:
             return super(TolerantOrderedDict, self).__getitem__(wrap(value))
-        except KeyError:
-            return super(TolerantOrderedDict, self).__getitem__(value)
+        except KeyError as e:
+            try:
+                return super(TolerantOrderedDict, self).__getitem__(value)
+            except:
+                raise
         except KeyError:
             raise
 
