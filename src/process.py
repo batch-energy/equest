@@ -51,7 +51,9 @@ def phase_6(b):
     print('  Making Floors')
     b.create_floors()
 
-    for floor in b.objects.get('B', []):
+    #b.remove_plenum_for_spaces_with_no_exterior_walls()
+
+    for floor in b.objects.get(['"B"'], []):
         for space in floor.spaces():
             for wall in space.e_walls():
                 if wall.is_vertical():
@@ -64,6 +66,10 @@ def phase_8(b):
         b.objects[name].delete()
     b.make_windows('e1.svg')
     b.validate_windows()
+
+    #b.add_daylighting()
+    #b.remove_vertical_interior_walls_for_spaces_with_no_windows()
+
 
 def main():
 
