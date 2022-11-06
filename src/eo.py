@@ -2829,6 +2829,9 @@ class Window(Wall_Object):
 
         Wall_Object.__init__(self, b, name, kind, parent)
 
+    def __repr__(self):
+        return f'<Window {self.name}>'
+
     def reduce(self, factor, add_frame=False):
 
         # scale window to percent vision
