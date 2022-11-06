@@ -1472,6 +1472,8 @@ class Building(object):
         first, but they are removed and recreated in this process.
         '''
 
+        orig_heights = {}
+
         if candidates is None:
             candidates = list(self.kinds('SPACE').values())
 
@@ -1483,6 +1485,7 @@ class Building(object):
                 delete_space_names.append(space.name)
                 delete_zone_names.append(space.zone().name)
                 adjust_space = self.objects[space.name.replace('_p', '')]
+                orig_heights[adjust_space] = adjust_space.attr.get('HEIGHT')
                 adjust_space.attr['HEIGHT'] = adjust_space.height() + space.height()
 
         # Delete spcaes and zones
@@ -1504,6 +1507,13 @@ class Building(object):
         self.create_roofs()
         self.create_floors()
         self.create_ceilings()
+
+        # Set heights back to original heights
+        for space, height in orig_heights.items():
+            if height is None:
+                space.attr.pop('HEIGHT', None)
+            else:
+                space.attr['HEIGHT'] = height
 
     def nudge_windows(self, buffer=0, trim=False, leave_if_unfit=True):
 
