@@ -21,7 +21,7 @@ Proj   "Template_Project"
    ..
 
 DiagData   "Detailed UI DiagData"  
-   PolyWndGridRes = 1
+   PolyWndGridRes = 10
    PolyWndLwrLeftX = 167.1
    PolyWndLwrLeftY = 43.9
    PolyWndWidth = 122.857
