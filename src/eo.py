@@ -2246,18 +2246,26 @@ class Space(Object):
 
     def combine_vertical(self, other):
 
+        next_tos = defaultdict(list)
+        for i_wall in self.b.kinds('INTERIOR-WALL').values():
+            next_to = i_wall.get('NEXT-TO')
+            if next_to:
+                next_tos[next_to].append(i_wall)
+
         deletes = [other.name, other.zone().name]
 
-        # see if the other
         for i_wall in self.i_walls():
             if i_wall.next_to().name == other.name:
                 deletes.append(i_wall.name)
 
-        for wall in other.e_walls() + other.u_walls() + other.i_walls():
+        for i_wall in other.i_walls():
+            if i_wall.next_to().name == self.name:
+                deletes.append(i_wall.name)
 
-            if wall.attr.get('NEXT-TO') == self.name:
-                deletes.append(wall.name)
-                continue
+        for i_wall in next_tos[other.name]:
+            i_wall.attr['NEXT-TO'] = self.name
+
+        for wall in other.e_walls() + other.u_walls() + other.i_walls():
 
             z = wall.z_global - self.z_global
             if wall.is_vertical():
