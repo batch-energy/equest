@@ -1579,21 +1579,33 @@ class Building(object):
             spaces = self.kinds('SPACE').values()
 
         for space in spaces:
-            windows = {}
+            window_areas = {}
+            window_widths = {}
 
             if space.is_plenum():
                 continue
 
+            error = False
             for e_wall in space.e_walls():
                 if e_wall.tilt() != 90:
                     continue
                 for window in e_wall.windows():
-                    windows[window.area()] = e_wall
+                    try:
+                        window_areas[window.area()] = e_wall
+                    except ValueError:
+                        error = True
+                    window_widths[window.width()] = e_wall
 
-            if not windows:
+            if not error and not window_areas:
+                continue
+            elif not window_widths:
                 continue
 
-            largest = windows[max(windows.keys())]
+            if error:
+                largest = window_widths[max(window_widths.keys())]
+            else:
+                largest = window_areas[max(window_areas.keys())]
+
             p1, p2 = largest.get_vertices()
             mx, my = e_math.midpoint(p1, p2)
             angle = e_math.get_angle(p1, p2, True)
