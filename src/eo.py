@@ -2613,6 +2613,13 @@ class E_Wall(Wall):
     def has_windows(self):
         return bool(self.windows())
 
+    def sibling_regular_walls(self):
+
+        return [ew for ew in self.b.kinds('EXTERIOR-WALL').values()
+                if ew.parent.parent.name == self.parent.parent.name
+                and ew.is_regular_wall()]
+
+
     def chain(self, count):
 
         floor_ewalls = [ew for ew in list(self.b.kinds('EXTERIOR-WALL').values())
