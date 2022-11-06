@@ -275,6 +275,11 @@ class Pdf_File(object):
 
         '''Convert polygon to space'''
 
+        if fdf_polygon.activity.lower() == 'plenum':
+            is_plenum = True
+        else:
+            is_plenum = False
+
         if 'Z' in fdf_polygon.attrs:
             space_z = fdf_polygon.attrs['Z']
         else:
@@ -286,9 +291,9 @@ class Pdf_File(object):
             total_height = floor.attr['FLOOR-HEIGHT']
 
         if 'HP' in fdf_polygon.attrs:
-            has_plenum = fdf_polygon.attrs['HP']
+            has_plenum = fdf_polygon.attrs['HP'] and not is_plenum
         else:
-            has_plenum = page.origin.attrs['HP']
+            has_plenum = page.origin.attrs['HP'] and not is_plenum
 
         if has_plenum:
             if 'PH' in fdf_polygon.attrs:
@@ -314,7 +319,10 @@ class Pdf_File(object):
 
         space = eo.Space(b, name, 'SPACE', floor)
 
-        space.attr['ZONE-TYPE'] = 'CONDITIONED'
+        if is_plenum:
+            space.attr['ZONE-TYPE'] = 'PLENUM'
+        else:
+            space.attr['ZONE-TYPE'] = 'CONDITIONED'
         space.attr['POLYGON'] = polygon.name
         space.attr['SHAPE'] = 'POLYGON'
 
