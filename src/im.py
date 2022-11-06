@@ -428,6 +428,9 @@ class Pdf_Polygon(object):
         self.attrs.update(s_attrs)
         self.attrs.update(a_attrs)
 
+    def __repr__(self):
+        return f'PDF_Polygon < {self.name}/{self.activity} >'
+
 def process_name(s):
 
     if ' ' in s.split('[')[0].strip():
