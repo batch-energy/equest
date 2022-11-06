@@ -2487,13 +2487,62 @@ class E_Wall(Wall):
         other = E_Wall(self.b, name, parent=self.parent)
         other.inherit(self)
 
-    def create_window(self, name, x=0, y=0, height=None, width=None):
-        height = height or self.height()
-        width = width or self.width()
+    def create_window(self,
+                      name=None,
+                      x=None,
+                      y=None,
+                      height=None,
+                      width=None,
+                      glass_type=None,
+                      frame_width=None,
+                      reduce_to=None,
+                      add_frame_on_reduce=False):
+
+        if x is None:
+            x = 0.01
+
+        if y is None:
+            y = 0.01
+
+        if name is None:
+            name = utils.rewrap(self.name, '-WINDOW')
+
+        height = height or (self.height() - 0.02)
+        width = width or (self.width() - 0.02)
         window = Window(self.b, name, parent=self)
-        for attr, value in [('X', x), ('Y', y), ('HEIGHT', height), ('WIDTH', width)]:
+
+        if frame_width:
+            window.attr['FRAME-WIDTH'] = frame_width
+            x = x + frame_width
+            y = y + frame_width
+            height = height - 2 * frame_width
+            width = width - 2 * frame_width
+
+        for attr, value in [('X', x),
+                            ('Y', y),
+                            ('HEIGHT', height),
+                            ('WIDTH', width)]:
             window.attr[attr] = value
+
+        if reduce_to:
+            window.reduce(reduce_to, add_frame=add_frame_on_reduce)
+
         return window
+
+    def create(cls, parent, name, x, y, w, h, glass=None, reduce=None, add_frame=False):
+        window = cls(parent.b, name=name, parent=parent)
+
+        window.attr['X'] = x
+        window.attr['Y'] = y
+        window.attr['WIDTH'] = w
+        window.attr['HEIGHT'] = h
+        if glass:
+            window.attr['GLASS-TYPE'] = glass
+
+        if reduce:
+            window.reduce(reduce, add_frame)
+        return window
+
 
     def create_door(self, name, x=0, y=0, height=None, width=None):
         height = height or self.height()
