@@ -2622,8 +2622,7 @@ class E_Wall(Wall):
 
     def chain(self, count):
 
-        floor_ewalls = [ew for ew in list(self.b.kinds('EXTERIOR-WALL').values())
-            if ew.parent.parent.name == self.parent.parent.name and ew.is_regular_wall()]
+        floor_ewalls = self.sibling_regular_walls()
 
         chain = [self]
         i = 1
