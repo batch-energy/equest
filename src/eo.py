@@ -2649,6 +2649,40 @@ class E_Wall(Wall):
                     i += 1
         return chain
 
+    def chain_until(self, stop_wall_name):
+
+        lookup = dict()
+        starting_key = None
+
+        floor_ewalls = self.sibling_regular_walls()
+
+        for ewall in floor_ewalls:
+            ewall_start = tuple(ewall.get_vertices()[0])
+            for key in lookup.keys():
+                if distance(ewall_start, key) < 0.1:
+                    lookup[key].append(ewall)
+                    break
+            else:
+                key = ewall_start
+                lookup[ewall_start] = [ewall]
+
+            if ewall == self:
+                starting_key = key
+
+        chain = lookup[starting_key]
+        stop = False
+        while not stop:
+            for key, walls in lookup.items():
+                last_end = chain[-1].get_vertices()[1]
+                if distance(last_end, key) <  0.1:
+                    chain += walls
+                    names = [wall.name for wall in walls]
+                    if stop_wall_name in names:
+                        stop = True
+                        break
+
+        return chain
+
 
 class U_Wall(Wall):
 
