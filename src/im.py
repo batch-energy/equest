@@ -77,7 +77,12 @@ class Pdf_File(object):
                     else:
                         self.errors.append('Page %s has multiple scales' % page_number)
                 elif annotation.get('/Subtype') == '/Polygon':
-                    pdf_page.polygons.append(Pdf_Polygon(annotation))
+                    try:
+                        polygon = Pdf_Polygon(annotation)
+                        pdf_page.polygons.append(polygon)
+                    except:
+                        self.errors.append(f'Could not create polygon from annotation {annotation}')
+
 
 
     def __verify_specials(self):
