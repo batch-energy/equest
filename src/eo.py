@@ -1690,9 +1690,10 @@ class Default(object):
 
 
 class Parameter(object):
-    def __init__(self, b, name=None, kind=None, parent=None):
+    def __init__(self, b, name=None, kind=None, parent=None, value=None):
         self.b = b
         self.name = name
+        self.value=value
         self.b.parameters[name] = self
 
     def read(self, lines):
