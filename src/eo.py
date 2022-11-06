@@ -1488,7 +1488,7 @@ class Building(object):
                 orig_heights[adjust_space] = adjust_space.attr.get('HEIGHT')
                 adjust_space.attr['HEIGHT'] = adjust_space.height() + space.height()
 
-        # Delete spcaes and zones
+        # Delete spaces and zones
         for name in delete_space_names:
             self.objects[name].delete()
         for name in delete_zone_names:
