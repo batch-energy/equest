@@ -2832,6 +2832,21 @@ class Window(Wall_Object):
     def __repr__(self):
         return f'<Window {self.name}>'
 
+    @classmethod
+    def create(cls, parent, name, x, y, w, h, glass=None, reduce=None, add_frame=False):
+        window = cls(parent.b, name=name, parent=parent)
+
+        window.attr['X'] = x
+        window.attr['Y'] = y
+        window.attr['WIDTH'] = w
+        window.attr['HEIGHT'] = h
+        if glass:
+            window.attr['GLASS-TYPE'] = glass
+
+        if reduce:
+            window.reduce(reduce, add_frame)
+        return window
+
     def reduce(self, factor, add_frame=False):
 
         # scale window to percent vision
