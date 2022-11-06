@@ -2479,6 +2479,10 @@ class E_Wall(Wall):
 
         Wall.__init__(self, b, name, kind, parent)
 
+
+    def __repr__(self):
+        return f'<E_Wall {self.name}>'
+
     def clone(self, name):
         other = E_Wall(self.b, name, parent=self.parent)
         other.inherit(self)
