@@ -144,7 +144,7 @@ class Pdf_File(object):
 
             for name, poly in floors.items():
                 if name != max_floor:
-                    self.errors.append('Polygon(s) %s is in floor %s' % (', '.join(poly), name))
+                    self.errors.append('Polygon(s) %s is in floor %s' % (', '.join(poly), max_floor))
 
             # assign floor name from dominent space
             page.name = floor_name
