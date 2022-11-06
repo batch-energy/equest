@@ -652,11 +652,19 @@ class Building(object):
 
     def validate_windows(self):
 
+        def is_dynamic(window):
+            return isinstance(window.attr.get('HEIGHT'), str) or \
+                   isinstance(window.attr.get('WIDTH'), str)
+
         off_wall = dict()
         bad_pairs = defaultdict(set)
         for wall in self.kinds('EXTERIOR-WALL').values():
             for window in wall.windows():
+                if is_dynamic(window):
+                    continue
                 for other_window in wall.windows():
+                    if is_dynamic(other_window):
+                        continue
                     if window is other_window:
                         continue
                     pair = tuple(sorted([window.name, other_window.name]))
