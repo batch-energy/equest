@@ -53,7 +53,7 @@ def phase_6(b):
 
     #b.remove_plenum_for_spaces_with_no_exterior_walls()
 
-    for floor in b.objects.get(['"B"'], []):
+    for floor in b.get_objects('"b1"', '"b2"') or []
         for space in floor.spaces():
             for wall in space.e_walls():
                 if wall.is_vertical():
