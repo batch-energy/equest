@@ -1232,11 +1232,9 @@ class Building(object):
                     try:
                         running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
                     except TopologicalError as e:
-                        msg = 'Shapely failure making roof for %s\n' % space.name + \
-                              'This line fails when a space has very narrow ' + \
-                              ' corridors connecting larger pieces. ' + \
-                              '"Combine close vertices collapes the corridor\n\n'
-                        print(msg)
+                        msg = '\n\nShapely failure making roof for %s' % space.name + \
+                              'when intersecting with ' + other_space.name + \
+                              '. Inspect ' + other_space.name + ' for polygon issues\n\n'
                         raise e
             if running_roof_polygon.area / space.shapely_poly.area > use_space_poly_tol:
                 roof_polygon_name_list = [space.polygon.name]
@@ -1299,10 +1297,9 @@ class Building(object):
                     try:
                         running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
                     except TopologicalError as e:
-                        msg = 'Shapely failure making floor for %s\n' % space.name + \
-                              'This line fails when a space has very narrow ' + \
-                              ' corridors connecting larger pieces. ' + \
-                              '"Combine close vertices collapes the corridor\n\n'
+                        msg = '\n\nShapely failure making floor for %s' % space.name + \
+                              'when intersecting with ' + other_space.name + \
+                              '. Inspect ' + other_space.name + ' for polygon issues\n\n'
                         print(msg)
                         raise e
 
@@ -1368,10 +1365,9 @@ class Building(object):
                     try:
                         ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
                     except TopologicalError as e:
-                        msg = 'Shapely failure making ceiling for %s\n' % space.name + \
-                              'This line fails when a space has very narrow ' + \
-                              ' corridors connecting larger pieces. ' + \
-                              '"Combine close vertices collapes the corridor\n\n'
+                        msg = '\n\nShapely failure making ceiling for %s' % space.name + \
+                              'when intersecting with ' + other_space.name + \
+                              '. Inspect ' + other_space.name + ' for polygon issues\n\n'
                         print(msg)
                         raise e
 
