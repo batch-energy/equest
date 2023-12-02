@@ -2784,6 +2784,41 @@ class U_Wall(Wall):
                 and uw.is_regular_wall()]
 
 
+    def chain_until(self, stop_wall_name):
+
+
+        lookup = dict()
+        starting_key = None
+
+        floor_uwalls = self.sibling_regular_walls()
+
+        for uwall in floor_uwalls:
+            uwall_start = tuple(uwall.get_vertices()[0])
+            for key in lookup.keys():
+                if distance(uwall_start, key) < 0.1:
+                    lookup[key].append(uwall)
+                    break
+            else:
+                key = uwall_start
+                lookup[uwall_start] = [uwall]
+
+            if uwall == self:
+                starting_key = key
+
+        chain = lookup[starting_key]
+        stop = False
+        while not stop:
+            for key, walls in lookup.items():
+                last_end = chain[-1].get_vertices()[1]
+                if distance(last_end, key) <  0.1:
+                    chain += walls
+                    names = [wall.name for wall in walls]
+                    if stop_wall_name in names:
+                        stop = True
+                        break
+
+        return chain
+
     def to_adiabatic(self):
         parts = self.name.split('-')
         if not self.special_horizontal():
