@@ -1639,6 +1639,10 @@ class Building(object):
                 count += 1
             running += wall.width()
 
+    @property
+    def default_glass_type(self):
+        return self.defaults[('WINDOW', None)].attr.get('GLASS-TYPE')
+
 
 class Default(object):
 
