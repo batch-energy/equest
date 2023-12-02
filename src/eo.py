@@ -2092,6 +2092,10 @@ class Floor(Object):
 
         return new_floor
 
+    def set_multiplier(self, value):
+        self.attr['MULTIPLIER'] = value
+
+
 class Space(Object):
 
     def __init__ (self, b, name=None, kind='SPACE', parent=None):
