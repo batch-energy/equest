@@ -2705,6 +2705,14 @@ class E_Wall(Wall):
 
         return chain
 
+    def to_adiabatic(self):
+        parts = self.name.split('-')
+        if not self.special_horizontal():
+            parts[2] = parts[2].replace('E', 'I')
+        iwall = I_Wall(self.b, name='-'.join(parts), parent=self.parent)
+        iwall.attr['INT-WALL-TYPE'] = 'ADIABATIC'
+        iwall.attr['LOCATION'] = self.attr['LOCATION']
+        self.delete()
 
 class U_Wall(Wall):
 
@@ -2768,6 +2776,15 @@ class U_Wall(Wall):
                     chain.append(uwall)
                     i += 1
         return chain
+
+    def to_adiabatic(self):
+        parts = self.name.split('-')
+        if not self.special_horizontal():
+            parts[2] = parts[2].replace('U', 'I')
+        iwall = I_Wall(self.b, name='-'.join(parts), parent=self.parent)
+        iwall.attr['INT-WALL-TYPE'] = 'ADIABATIC'
+        iwall.attr['LOCATION'] = self.attr['LOCATION']
+        self.delete()
 
 
 class I_Wall(Wall):
