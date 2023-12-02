@@ -2096,6 +2096,24 @@ class Floor(Object):
         self.attr['MULTIPLIER'] = value
 
 
+    def add_skylight(self, x, y, w, h, glass_type=None):
+        if glass_type is None:
+            self.b.default_glass_type
+        point = Point(x, y + h)
+        for space in self.spaces():
+            for wall in space.e_walls():
+                if wall.tilt() != 0:
+                    continue
+                poly = wall.polygon().shapely_poly
+                if not point.within(poly):
+                    continue
+                name = rewrap(wall.name, f'-SL_{x}_{y}')
+                wall.create_window(name=name, x=x, y=y+h,
+                                   height=h, width=w, glass_type=glass_type)
+                return
+        print(f'No match for skylight Floor={self.name} x={x} y={y} w={w} h={h}')
+
+
 class Space(Object):
 
     def __init__ (self, b, name=None, kind='SPACE', parent=None):
