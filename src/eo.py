@@ -2777,6 +2777,13 @@ class U_Wall(Wall):
                     i += 1
         return chain
 
+    def sibling_regular_walls(self):
+
+        return [uw for uw in self.b.kinds('UNDERGROUND-WALL').values()
+                if uw.parent.parent.name == self.parent.parent.name
+                and uw.is_regular_wall()]
+
+
     def to_adiabatic(self):
         parts = self.name.split('-')
         if not self.special_horizontal():
