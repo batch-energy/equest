@@ -2005,6 +2005,12 @@ class Floor(Object):
         return [space for space in list(self.b.kinds('SPACE').values())
             if space.parent==self]
 
+    def roofs(self):
+        roofs = []
+        for space in self.spaces():
+            roofs.extend(space.roofs())
+        return roofs
+
     def roofs_to_adiabatic(self, skip_spaces=None):
 
         roof_spaces = []
