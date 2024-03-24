@@ -1404,7 +1404,7 @@ class Building(object):
         for space in list(self.kinds('SPACE').values()):
             space.make_zone()
 
-    def remove_vertical_interior_walls_for_spaces_with_no_windows(self):
+    def remove_vertical_interior_walls_for_spaces_with_no_windows(self, candidates=None):
 
         '''
         Remove interior walls where the plenum and associate zones for spaces
@@ -1418,6 +1418,10 @@ class Building(object):
                 continue
 
             parent, next_to = i_wall.parents()
+            if candidates is not None and \
+                    parent not in candidates and \
+                    next_to not in candidates:
+                continue
 
             windows = []
             for space in i_wall.parents():
