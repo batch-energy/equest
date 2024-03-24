@@ -3141,7 +3141,7 @@ def split_roof(roof, points, combine_tolerance=0.5):
     # Delete old
     roof.delete()
 
-def sloped_roof(roof, base_point, other_point):
+def sloped_roof(roof, base_point, other_point, tilt=None):
 
     '''
     Convert existing roofs to sloped roofs. Use a base point
@@ -3154,6 +3154,11 @@ def sloped_roof(roof, base_point, other_point):
 
     See Gardner Elementary for an example
     '''
+
+    def z_from_angle(p1, p2, tilt):
+
+        xy_dist = math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+        return p1[2] + math.tan(math.radians(tilt)) * xy_dist
 
     def angle(p1, p2):
         x1 = float(p1[0])
@@ -3210,6 +3215,9 @@ def sloped_roof(roof, base_point, other_point):
 
     x1, y1, z1 = base_point
     x2, y2, z2 = other_point
+
+    if tilt:
+        z2 = z_from_angle(base_point, other_point, tilt)
 
     new_vertices = []
     for v in polygon.vertices:
