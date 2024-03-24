@@ -2202,6 +2202,12 @@ class Space(Object):
     def shapely_poly(self):
         return self.polygon.shapely_poly
 
+    def area(self):
+        return self.polygon.shapely_poly.area
+
+    def perimeter(self):
+        return self.polygon.shapely_poly.length
+
     def lines(self):
         return self.polygon.lines
 
