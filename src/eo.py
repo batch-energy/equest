@@ -889,7 +889,6 @@ class Building(object):
                     space.polygon.add_verticy(p, i) # plus because we're looping through the lines
                     other_space.polygon.set_verticy(p, j)
 
-                    #space.polygon.delete_sequential_dupes()
                     other_space.polygon.delete_sequential_dupes()
 
     def split_interior_walls_prescribed_(self, spaces, tol=1):
