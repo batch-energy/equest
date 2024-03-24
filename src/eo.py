@@ -1408,7 +1408,7 @@ class Building(object):
 
         '''
         Remove interior walls where the plenum and associate zones for spaces
-        with no exterior walls
+        with no exterior walls that have windows
         '''
 
         delete_i_walls = []
