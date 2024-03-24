@@ -1464,7 +1464,7 @@ class Building(object):
         delete_space_names = []
         delete_zone_names = []
         for space in candidates:
-            if space.is_plenum() and len(space.e_walls()) == 0:
+            if space.is_plenum() and len(space.e_walls()) == 0 and len(space.u_walls()) == 0:
                 delete_space_names.append(space.name)
                 delete_zone_names.append(space.zone().name)
                 adjust_space = self.objects[space.name.replace('_p', '')]
