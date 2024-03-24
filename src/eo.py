@@ -1914,6 +1914,42 @@ class Polygon(Object):
     def perimeter(self):
         return self.shapely_poly.length
 
+    def clean(self, tol=0.1):
+
+
+        def is_same(p1, p2):
+            return e_math.distance(p1, p2) < tol
+
+        points = self.vertices
+
+        if self.name == '"0-GAR2_p-Roof_2 poly"':
+            print(points)
+
+
+        if len(points) < 3:
+            return
+
+        if is_same(points[0], points[-1]):
+            points.pop(-1)
+
+        i = 0
+        while i < len(points) - 1:
+            if is_same(points[i], points[i+1]):
+                points.pop(i+1)
+                continue
+
+            if i < len(points) - 2 and is_same(points[i], points[i+2]):
+                points.pop(i+2)
+                points.pop(i+1)
+                continue
+
+            i += 1
+
+        if len(points) > 2 and is_same(points[0], points[-1]):
+            points.pop(-1)
+
+        self.set_vertices(points)
+
     def delete_sequential_dupes(self, tol=0.1):
 
         # Remove sequential dupes
