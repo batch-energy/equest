@@ -1371,6 +1371,9 @@ class Building(object):
                     else:
                         continue
 
+                    if sum(p.area for p in ceiling_shapely_polygon_list)==0:
+                        continue
+
                     if other_space.is_plenum():
                         construction = get_client_construction()['ceiling']
                     else:
