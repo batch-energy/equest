@@ -881,7 +881,6 @@ class Building(object):
             pairs = space_pairs
 
         for space, other_space in pairs:
-            print((space, other_space))
             for i, line in enumerate(space.polygon.lines):
                 for j, point in enumerate(other_space.polygon.points):
 
