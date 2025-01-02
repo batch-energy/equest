@@ -6,7 +6,7 @@ from shapely.ops import split as shapely_split, nearest_points
 import copy
 from string import ascii_lowercase
 import operator
-from shapely.errors import TopologicalError
+from shapely.errors import TopologicalError, GEOSException
 from shapely import affinity
 
 from utils import wrap, unwrap, rewrap
@@ -1214,7 +1214,7 @@ class Building(object):
                 if abs(space.z_global + space.height() - other_space.z_global) < tol:
                     try:
                         running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
-                    except TopologicalError as e:
+                    except GEOSException as e:
                         msg = '\n\nShapely failure making roof for %s' % space.name + \
                               'when intersecting with ' + other_space.name + \
                               '. Inspect ' + other_space.name + ' for polygon issues\n\n'
@@ -1279,7 +1279,7 @@ class Building(object):
                 if abs(space.z_global - (other_space.z_global + other_space.height())) < tol:
                     try:
                         running_floor_polygon = running_floor_polygon.difference(other_space.shapely_poly)
-                    except TopologicalError as e:
+                    except GEOSException as e:
                         msg = '\n\nShapely failure making floor for %s' % space.name + \
                               'when intersecting with ' + other_space.name + \
                               '. Inspect ' + other_space.name + ' for polygon issues\n\n'
@@ -1347,7 +1347,7 @@ class Building(object):
                 if abs(space.z_global + space.height() - other_space.z_global) < tol:
                     try:
                         ceiling_polygon = space.shapely_poly.intersection(other_space.shapely_poly)
-                    except TopologicalError as e:
+                    except GEOSException as e:
                         msg = '\n\nShapely failure making ceiling for %s' % space.name + \
                               'when intersecting with ' + other_space.name + \
                               '. Inspect ' + other_space.name + ' for polygon issues\n\n'
