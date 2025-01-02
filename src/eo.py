@@ -2584,6 +2584,9 @@ class E_Wall(Wall):
             height = height - 2 * frame_width
             width = width - 2 * frame_width
 
+        if glass_type is not None:
+            window.attr['GLASS-TYPE'] = glass_type
+
         for attr, value in [('X', x),
                             ('Y', y),
                             ('HEIGHT', height),
