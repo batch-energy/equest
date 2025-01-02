@@ -2002,6 +2002,9 @@ class Polygon(Object):
         return [(self.vertices[i], self.vertices[(i+2)%(len(self.vertices) + 1)])
             for i in range(len(self.vertices))]
 
+    def lines_and_line_points(self):
+        return zip(self.lines, self.line_points)
+
     def is_ccw(self):
         return self.shapely_poly.exterior.is_ccw
 
@@ -2223,7 +2226,7 @@ class Space(Object):
         return self.polygon.lines
 
     def lines_and_line_points(self):
-        return zip(self.polygon.lines, self.polygon.line_points)
+        return self.polygon.lines_and_line_points()
 
     def points(self):
         return self.polygon.points
