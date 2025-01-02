@@ -1224,7 +1224,7 @@ class Building(object):
                         running_roof_polygon = running_roof_polygon.difference(other_space.shapely_poly)
                     except GEOSException as e:
                         msg = '\n\nShapely failure making roof for %s' % space.name + \
-                              'when intersecting with ' + other_space.name + \
+                              ' when intersecting with ' + other_space.name + \
                               '. Inspect ' + other_space.name + ' for polygon issues\n\n'
                         raise e
             if running_roof_polygon.area / space.shapely_poly.area > use_space_poly_tol:
