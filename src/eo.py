@@ -2590,7 +2590,8 @@ class E_Wall(Wall):
         for attr, value in [('X', x),
                             ('Y', y),
                             ('HEIGHT', height),
-                            ('WIDTH', width)]:
+                            ('WIDTH', width)
+                            ]:
             window.attr[attr] = value
 
         if reduce_to:
