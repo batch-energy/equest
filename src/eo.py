@@ -1396,6 +1396,10 @@ class Building(object):
                             if polygon.area()/polygon.perimeter() < ratio_tol:
                                 polygon.delete()
                                 continue
+                            if not polygon.shapely_poly.is_valid:
+                                print(f'   Polygon intersection {space.name} {other_space.name} invalid: {polygon.shapely_poly.area}')
+                                polygon.delete()
+                                continue
                             if not polygon.is_ccw():
                                 polygon.reverse()
                         ceiling_name = utils.suffix(space.name, '-C%s' % (count))
