@@ -40,14 +40,14 @@ class Pdf_File(object):
 
         '''Assign annotations from pdf'''
 
-        input = PyPDF2.PdfFileReader(open(self.pdf_path, "rb"))
+        input = PyPDF2.PdfReader(open(self.pdf_path, "rb"))
 
-        for i in range(input.getNumPages()) :
-            annots = input.getPage(i).get('/Annots', [])
+        for i in range(len(input.pages)) :
+            annots = input.pages[i].get('/Annots', [])
             if not isinstance(annots, list):
                 continue
             for annot in annots:
-                self.annotations[i].append(annot.getObject())
+                self.annotations[i].append(annot.get_object())
 
 
     def __build(self):
