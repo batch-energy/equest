@@ -881,7 +881,7 @@ class Building(object):
             pairs = space_pairs
 
         for space, other_space in pairs:
-            for i, line in enumerate(space.polygon.lines):
+            for i, (line, (p1, p2)) in enumerate(space.polygon.lines_and_line_points()):
                 for j, point in enumerate(other_space.polygon.points):
 
                     # Line and point are distant
@@ -889,7 +889,6 @@ class Building(object):
                         continue
 
                     # Point is on line endpoint
-                    p1, p2 = Point((line.coords)[0]), Point((line.coords)[-1])
                     if any([(p.distance(point) < tol) for p in [p1, p2]]):
                         continue
 
@@ -1174,18 +1173,18 @@ class Building(object):
                         for i, point in reversed(list(enumerate(polygon.points)))}
 
                 lines = {
-                    (polygon, i):line for polygon in polygons
-                        for i, line in reversed(list(enumerate(polygon.lines)))}
+                    (polygon, i):(line, line_point) for polygon in polygons
+                        for i, (line, line_point) in reversed(list(enumerate(polygon.lines_and_line_points())))}
 
                 lookup_move = {}
                 lookup_add = {}
 
                 # finds at most one point near line
-                for (line_poly, i), line in lines.items():
+                for (line_poly, i), (line, line_point_pair) in lines.items():
                     for (point_poly, j), point in points.items():
                         if (point_poly, j) in lookup_move or line_poly is point_poly:
                             continue
-                        p1, p2 = Point((line.coords)[0]), Point((line.coords)[-1])
+                        p1, p2 = line_point_pair
                         if any([(p.distance(point) < tol) for p in [p1, p2]]):
                             continue
                         if point.distance(line) < tol:
@@ -1861,6 +1860,9 @@ class Polygon(Object):
         for ps in self.sequential_vertices_list():
             self.lines.append(LineString(ps))
         self.points = [Point(p) for p in self.vertices]
+        self.line_points = [
+            (self.points[i], self.points[(i + 1) % len(self.points)])
+            for i in range(len(self.points))]
 
     def set_vertices(self, vertices):
         if isinstance(vertices, ShapelyPoly):
@@ -2219,6 +2221,9 @@ class Space(Object):
 
     def lines(self):
         return self.polygon.lines
+
+    def lines_and_line_points(self):
+        return zip(self.polygon.lines, self.polygon.line_points)
 
     def points(self):
         return self.polygon.points
@@ -3266,12 +3271,12 @@ def identify_candidate_adjacent_walls():
     wall_pairs = []
     bad_wall_pairs = []
     for space, other_space in b1.space_pairs():
-        for i, line in enumerate(space.lines(), 1):
+        for i, (line, line_point_pair) in enumerate(space.lines_and_line_points(), 1):
             if line.distance(other_space.shapely_poly) > 1:
                 continue
                 # Other space it too far away from this wall
             line_angle = e_math.get_angle(*list(line.coords))
-            for j, other_line in enumerate(other_space.lines(), 1):
+            for j, (other_line, other_line_point_pair) in enumerate(other_space.lines_and_line_points(), 1):
                 other_line_angle = e_math.get_angle(*list(other_line.coords))
                 a_difference = e_math.angle_difference(line_angle, other_line_angle)
                 if line.distance(other_line) > 1:
@@ -3281,8 +3286,8 @@ def identify_candidate_adjacent_walls():
                     # Other wall not opposite facing
                     continue
 
-                p1, p2 = Point((line.coords)[0]), Point((line.coords)[-1])
-                op1, op2 = Point((other_line.coords)[0]), Point((other_line.coords)[-1])
+                p1, p2 = line_point_pair
+                op1, op2 = other_line_point_pair
                 if p1.distance(op1) < 1 or p2.distance(op2) < 1:
                     # Walls share wrong point
                     continue
