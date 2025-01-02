@@ -693,6 +693,15 @@ class Building(object):
         else:
             print('  No windows are off walls\n')
 
+    def set_dynamic_frame(self, glass_type, value):
+        width = self.defaults[('WINDOW', None)].attr['FRAME-WIDTH']
+        if glass_type == '"F W"':
+            print('hit')
+            self.defaults[('WINDOW', None)].attr['FRAME-WIDTH'] = width.replace('0.75', str(value))
+        if glass_type == '"F C"':
+            self.defaults[('WINDOW', None)].attr['FRAME-WIDTH'] = width.replace('0.90', str(value))
+
+
     def rotate_floors(self, degrees, floors=None):
 
         '''Rotate all spaces or spaces on floors'''
