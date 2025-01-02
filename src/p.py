@@ -33,7 +33,7 @@ def main():
         print('\n  All set. Will open process.py')
         print()
         input('  >>')
-        subprocess.Popen('"C:\Program Files\Just Great Software\EditPad Pro 8\EditPadPro8.exe" process.py')
+        subprocess.Popen(r'"C:\Program Files\Just Great Software\EditPad Pro 8\EditPadPro8.exe" process.py')
     else:
         backup = 'backup.inp'
         input_file = utils.input_file_name()

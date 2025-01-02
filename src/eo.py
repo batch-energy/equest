@@ -1660,7 +1660,7 @@ class Default(object):
 
         for line in lines[1:]:
             if '=' in line:
-                n, v = re.split("\s*=\s*", line, maxsplit=1)
+                n, v = re.split(r"\s*=\s*", line, maxsplit=1)
             else:
                 n, v = line, None
             self.attr[n] = v
@@ -1741,7 +1741,7 @@ class Object(object):
 
         for line in lines[1:]:
             if '=' in line:
-                n, v = re.split("\s*=\s*", line, maxsplit=1)
+                n, v = re.split(r"\s*=\s*", line, maxsplit=1)
             else:
                 n, v = line, None
             self.attr[n] = v
@@ -2454,7 +2454,7 @@ class Wall(Object):
 
     def get_side_number(self):
         if 'LOCATION' in self.attr and 'SPACE-' in self.get('LOCATION'):
-            return int(re.findall('(?<=SPACE-V)\d+', self.get('LOCATION'))[0])
+            return int(re.findall(r'(?<=SPACE-V)\d+', self.get('LOCATION'))[0])
         else:
             return None
 
