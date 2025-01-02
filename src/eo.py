@@ -889,7 +889,8 @@ class Building(object):
                         continue
 
                     # Point is on line endpoint
-                    if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
+                    p1, p2 = Point((line.coords)[0]), Point((line.coords)[-1])
+                    if any([(p.distance(point) < tol) for p in [p1, p2]]):
                         continue
 
                     p = line.interpolate(line.project(point))
@@ -1184,7 +1185,8 @@ class Building(object):
                     for (point_poly, j), point in points.items():
                         if (point_poly, j) in lookup_move or line_poly is point_poly:
                             continue
-                        if any([(p.distance(point) < tol) for p in [line.p1, line.p2]]):
+                        p1, p2 = Point((line.coords)[0]), Point((line.coords)[-1])
+                        if any([(p.distance(point) < tol) for p in [p1, p2]]):
                             continue
                         if point.distance(line) < tol:
                             p = line.interpolate(line.project(point))
@@ -1857,9 +1859,7 @@ class Polygon(Object):
 
         self.lines = []
         for ps in self.sequential_vertices_list():
-            line = LineString(ps)
-            line.p1, line.p2 = [Point(p) for p in ps]
-            self.lines.append(line)
+            self.lines.append(LineString(ps))
         self.points = [Point(p) for p in self.vertices]
 
     def set_vertices(self, vertices):
@@ -3280,11 +3280,14 @@ def identify_candidate_adjacent_walls():
                 if abs(a_difference-180) > 5:
                     # Other wall not opposite facing
                     continue
-                if line.p1.distance(other_line.p1) < 1 or line.p2.distance(other_line.p2) < 1:
+
+                p1, p2 = Point((line.coords)[0]), Point((line.coords)[-1])
+                op1, op2 = Point((other_line.coords)[0]), Point((other_line.coords)[-1])
+                if p1.distance(op1) < 1 or p2.distance(op2) < 1:
                     # Walls share wrong point
                     continue
                 wall_pair = (space.name, i, other_space.name, j)
-                if line.p1.distance(other_line.p2) < 1 and line.p2.distance(other_line.p1) < 1:
+                if p1.distance(other_line.p2) < 1 and line.p2.distance(op1) < 1:
                     wall_pairs.append(wall_pair)
                     continue
                 bad_wall_pairs.append(wall_pair)
