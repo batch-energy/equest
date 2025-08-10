@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+    <name>Set Object Name</name>
+    <id>org.inkscape.visualise.set_object_name</id>
+    <effect>
+        <object-type>path</object-type>
+        <effects-menu>
+            <submenu name="Set Data"/>
+        </effects-menu>
+    </effect>
+    <script>
+        <command location="inx" interpreter="python">set_object_name.py</command>
+    </script>
+</inkscape-extension>
